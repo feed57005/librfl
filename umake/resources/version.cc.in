@@ -1,0 +1,6 @@
+#include "@MODULE_DIR@/@MODULE@_version.h"
+
+char const *@MODULE@Version() { return @MODULE_UPPER@_VERSION; }
+
+char const *@MODULE@PackageName() { return @MODULE_UPPER@_PACKAGE_NAME; }
+
