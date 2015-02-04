@@ -12,6 +12,7 @@ set (rfl-scan_SOURCES
   )
 set (rfl-scan_TARGET_TYPE executable)
 set (implicit "")
+
 set (implicit_includes "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}")
 if (OS_LINUX)
   list (APPEND implicit_includes
@@ -60,13 +61,13 @@ add_module(test_annotations)
 
 set (test_annotations_rfl_TARGET_TYPE SHARED)
 set (test_annotations_rfl_SOURCES
-  test_pkg.cc
+  test_annotations_rfl.cc
   )
 
 set (test_annotations_rfl_DEPS test_annotations rfl)
 
-add_custom_command (OUTPUT test_pkg.cc
-  COMMAND rfl-scan -p ${CMAKE_BINARY_DIR}/compile_commands.json
+add_custom_command (OUTPUT test_annotations_rfl.cc
+  COMMAND rfl-scan -p ${CMAKE_BINARY_DIR}/compile_commands.json -output test_annotations_rfl
   ${test_annotations_SOURCES}
   DEPENDS ${test_annotations_SOURCES} rfl-scan
   )

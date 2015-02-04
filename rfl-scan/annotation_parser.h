@@ -11,6 +11,9 @@
 
 #include <string>
 
+// TODO get rid of LLVM deps & move to rfl ?
+// TODO store annotations already parsed?
+
 namespace rfl {
 namespace scan {
 

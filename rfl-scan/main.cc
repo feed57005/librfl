@@ -36,44 +36,16 @@ static cl::list<std::string> Imports("i",
                                      cl::Prefix, cl::ZeroOrMore,
                                      cl::desc("import rfl library"),
                                      cl::cat(RflScanCategory));
-#if 0
-namespace {
-  
-class InsertAdjuster: public clang::tooling::ArgumentsAdjuster {
-public:
-  enum Position { BEGIN, END };
 
-  InsertAdjuster(const CommandLineArguments &Extra, Position Pos)
-    : Extra(Extra), Pos(Pos) {
-  }
-
-  InsertAdjuster(const char *Extra, Position Pos)
-    : Extra(1, std::string(Extra)), Pos(Pos) {
-  }
-
-  virtual CommandLineArguments
-  Adjust(const CommandLineArguments &Args) override {
-    CommandLineArguments Return(Args);
-
-    CommandLineArguments::iterator I;
-    if (Pos == END) {
-      I = Return.end();
-    } else {
-      I = Return.begin();
-      ++I; // To leave the program name in place
-    }
-
-    Return.insert(I, Extra.begin(), Extra.end());
-    return Return;
-  }
-
-private:
-  const CommandLineArguments Extra;
-  const Position Pos;
-};
-
-} // namespace
-#endif
+static cl::opt<std::string> OutputName("output",
+                                      cl::desc("output file name prefix"),
+                                      cl::cat(RflScanCategory));
+static cl::opt<std::string> PackageName("pkg-name",
+                                      cl::desc("package name"),
+                                      cl::cat(RflScanCategory));
+static cl::opt<std::string> PackageVersion("pkg-version",
+                                      cl::desc("package version"),
+                                      cl::cat(RflScanCategory));
 
 ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
   return [extra] (CommandLineArguments const &args){
@@ -95,18 +67,13 @@ int main(int argc, const char **argv) {
   llvm::sys::path::append(resource_dir , "lib", "clang", CLANG_VERSION_STRING);
 
   CommandLineArguments extra_args;
-#if 0
-  std::string extra_flags = "-resource-dir=";
-  extra_flags += resource_dir.c_str();
-  extra_args.push_back(extra_flags);
-#endif
 
   extra_args.push_back("-D__RFL_SCAN__");
   std::istringstream iss(std::string(IMPLICIT));
   std::copy(std::istream_iterator<std::string>(iss),
             std::istream_iterator<std::string>(),
             std::back_inserter(extra_args));
-  //extra_args.push_back(IMPLICIT);
+
   for (auto str : extra_args) {
     outs() << str << "\n";
   }
@@ -116,11 +83,12 @@ int main(int argc, const char **argv) {
 
   tool.appendArgumentsAdjuster(
      getInsertArgumentAdjuster(extra_args, ArgumentInsertPosition::BEGIN));
-     // new InsertAdjuster(rc_dir_args, InsertAdjuster::BEGIN));
 
   std::unique_ptr<rfl::Repository> repository(new rfl::Repository());
 
-  std::unique_ptr<rfl::Package> package(new rfl::Package("test", "1.0"));
+  std::string const &pkg_name = PackageName.getValue();
+  std::string const &pkg_version = PackageVersion.getValue();
+  std::unique_ptr<rfl::Package> package(new rfl::Package(pkg_name.c_str(), pkg_version.c_str()));
 
   // load imports
   for (std::vector<std::string>::iterator it = Imports.begin(),
@@ -132,10 +100,10 @@ int main(int argc, const char **argv) {
 
   std::unique_ptr<rfl::scan::ASTScanActionFactory> factory(
       new rfl::scan::ASTScanActionFactory(package.get()));
-  //tool.appendArgumentsAdjuster(new InsertAdjuster(IMPLICIT_INCLUDES, InsertAdjuster::BEGIN));
   int ret = tool.run(factory.get());
 
-  //rfl::DumpPackage(std::cout, package.get());
-  rfl::GeneratePackage("test_pkg.cc", package.get());
+  std::string output_name = OutputName.getValue();
+  output_name+= ".cc";
+  rfl::GeneratePackage(output_name.c_str(), package.get());
   return ret;
 }

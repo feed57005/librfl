@@ -5,15 +5,14 @@
 
 namespace rfl {
 
-
 class DynamicObject {
 public:
   DynamicObject(void *instance, Class const *klass)
-    : instance_(instance), class_(klass) {}
+      : instance_(instance), class_(klass) {}
 
   template <typename T>
   T const &GetProperty(rfl::Property const *prop) const {
-    T const *value = (T *) ((char *) instance_ + (size_t) prop->offset()/ 8);
+    T const *value = (T *)((char *)instance_ + (size_t)prop->offset() / 8);
     return *value;
   }
 
@@ -22,13 +21,13 @@ public:
     Property *prop = class_->FindProperty(name);
     if (prop == nullptr)
       return nullptr;
-    T const *value = (T *) ((char *) instance_ + (size_t) prop->offset()/ 8);
+    T const *value = (T *)((char *)instance_ + (size_t)prop->offset() / 8);
     return value;
   }
 
   template <typename T>
   void SetProperty(rfl::Property const *prop, T const &new_value) const {
-    T *value = (T *) ((char *) instance_ + (size_t) prop->offset()/ 8);
+    T *value = (T *)((char *)instance_ + (size_t)prop->offset() / 8);
     *value = new_value;
   }
 
@@ -48,9 +47,8 @@ private:
   Class const *class_;
 };
 
-} // namespace rfl
+}  // namespace rfl
 int main(int argc, char **argv) {
-
   using namespace rfl;
   if (argc < 2) {
     std::cout << "usage: " << argv[0] << " <path_to_rfllib>" << std::endl;
@@ -77,8 +75,8 @@ int main(int argc, char **argv) {
   dyn_obj.SetProperty(float_prop, float(666.666));
   std::cout << dyn_obj.GetProperty<float>(float_prop) << std::endl;
 
-  test::TestBaseObject *obj = (test::TestBaseObject *) dyn_obj.instance();
-  std::cout << obj->int_value() << " " << obj->float_value() <<  std::endl;
+  test::TestBaseObject *obj = (test::TestBaseObject *)dyn_obj.instance();
+  std::cout << obj->int_value() << " " << obj->float_value() << std::endl;
   UnloadNativeLibrary(lib);
   return 0;
 }
