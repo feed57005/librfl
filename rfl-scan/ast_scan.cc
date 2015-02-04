@@ -13,8 +13,8 @@
 namespace rfl {
 namespace scan {
 
-ASTScanner::ASTScanner(Package *pkg, raw_ostream *out)
-    : context_(nullptr), out_(out ? *out : outs()), package_(pkg) {}
+ASTScanner::ASTScanner(ASTScannerContext *scan_ctx, raw_ostream *out)
+    : context_(nullptr), out_(out ? *out : outs()), scanner_context_(scan_ctx) {}
 
 void ASTScanner::HandleTranslationUnit(ASTContext &Context) {
   TranslationUnitDecl *D = Context.getTranslationUnitDecl();
@@ -58,6 +58,16 @@ bool ASTScanner::TraverseDecl(Decl *D) {
   return base::TraverseDecl(D);
 }
 
+static std::string StripBasedir(std::string const &filename,
+                                std::string const &basedir) {
+  size_t basedir_pos = filename.find(basedir);
+  if (basedir_pos != std::string::npos && basedir_pos == 0) {
+    return filename.substr(basedir.length() + 1,
+                           filename.length() - basedir.length());
+  }
+  return std::string();
+}
+
 bool ASTScanner::ReadAnnotation(NamedDecl *D, Annotation *anno) {
   // Reflection attributes are stored as clang annotation attributes
   specific_attr_iterator<AnnotateAttr> i =
@@ -75,16 +85,16 @@ bool ASTScanner::ReadAnnotation(NamedDecl *D, Annotation *anno) {
   // Decipher the source location of the attribute for error reporting
   SourceLocation location = attribute->getLocation();
   PresumedLoc presumed_loc = src_manager.getPresumedLoc(location);
-  const char *filename = presumed_loc.getFilename();
+  std::string filename = StripBasedir(presumed_loc.getFilename(), basedir());
   int line = presumed_loc.getLine();
   anno->value_ = attribute_text.str();
   anno->file_ = filename;
   anno->line_ = line;
-  
+
 #if 0
   out_ <<"$$$ "<< anno->value_ << "\n";
   std::string err_msg;
-  std::unique_ptr<AnnotationParser> parser = 
+  std::unique_ptr<AnnotationParser> parser =
     AnnotationParser::loadFromBuffer(StringRef(anno->value_), err_msg);
   if (parser == nullptr) {
     errs() << "Failed to parse annotation: " << err_msg << "\n at " << filename << ":"<< line << "\n";
@@ -107,7 +117,7 @@ Namespace *ASTScanner::GetOrCreateNamespaceForRecord(CXXRecordDecl *D) {
     ctx = ctx->getParent();
   }
 
-  Namespace *current_ns = package_;
+  Namespace *current_ns = package();
 
   for (ContextsTy::reverse_iterator I = contexts.rbegin(), E = contexts.rend();
        I != E;
@@ -173,7 +183,7 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
     SourceManager const &src_manager = context_->getSourceManager();
     SourceLocation source_loc = D->getSourceRange().getBegin();
     PresumedLoc presumed_loc = src_manager.getPresumedLoc(source_loc, false);
-    std::string header_file = presumed_loc.getFilename();
+    std::string header_file = StripBasedir(presumed_loc.getFilename(), basedir());
 
     Class *klass = new Class(name, header_file, anno, nullptr, nullptr, super);
     if (!parent) {
@@ -221,12 +231,14 @@ void ASTScanner::AddDecl(NamedDecl *D) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-ASTScanAction::ASTScanAction(Package *package) : package_(package) {}
+ASTScanAction::ASTScanAction(ASTScannerContext *scan_ctx)
+    : scanner_context_(scan_ctx) {
+}
 
 std::unique_ptr<ASTConsumer> ASTScanAction::CreateASTConsumer(
     CompilerInstance &CI,
     StringRef InFile) {
-  return make_unique<ASTScanner>(package_, &outs());
+  return make_unique<ASTScanner>(scanner_context_, &outs());
 }
 
 } // namespace scan

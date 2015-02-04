@@ -29,7 +29,7 @@ class Package;
 class RFL_EXPORT Annotation {
 public:
   std::string value_;
-  char const *file_;
+  std::string file_;
   int line_;
 
   Annotation() {}

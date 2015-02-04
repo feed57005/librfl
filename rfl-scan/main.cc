@@ -13,6 +13,7 @@
 #include "rfl/reflected.h"
 #include "rfl/repository.h"
 #include "rfl/reflected_io.h"
+#include "rfl/native_library.h"
 #include "rfl-scan/ast_scan.h"
 
 #include <iostream>
@@ -46,6 +47,9 @@ static cl::opt<std::string> PackageName("pkg-name",
 static cl::opt<std::string> PackageVersion("pkg-version",
                                       cl::desc("package version"),
                                       cl::cat(RflScanCategory));
+static cl::opt<std::string> Basedir("basedir",
+                                      cl::desc("package basedir"),
+                                      cl::cat(RflScanCategory));
 
 ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
   return [extra] (CommandLineArguments const &args){
@@ -54,6 +58,8 @@ ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
     return ret;
   };
 }
+
+typedef int (*GenPackage)(char const *path, rfl::Package *pkg);
 
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
@@ -98,12 +104,35 @@ int main(int argc, const char **argv) {
     llvm::outs() << "importing " << *it << "\n";
   }
 
+  std::string const &basedir = Basedir.getValue();
+  std::unique_ptr<rfl::scan::ASTScannerContext> scan_ctx(
+    new rfl::scan::ASTScannerContext(repository.get(), package.get(), Basedir.getValue())
+    );
+
   std::unique_ptr<rfl::scan::ASTScanActionFactory> factory(
-      new rfl::scan::ASTScanActionFactory(package.get()));
+      new rfl::scan::ASTScanActionFactory(scan_ctx.get()));
   int ret = tool.run(factory.get());
 
-  std::string output_name = OutputName.getValue();
-  output_name+= ".cc";
-  rfl::GeneratePackage(output_name.c_str(), package.get());
+  if (Generators.empty()) {
+    std::string output_name = OutputName.getValue();
+    output_name+= ".cc";
+    rfl::GeneratePackage(output_name.c_str(), package.get());
+  } else {
+    for (std::string const &generator : Generators) {
+      std::string err;
+      rfl::NativeLibrary lib = rfl::LoadNativeLibrary(generator.c_str(), &err);
+      if (!lib) {
+        llvm::errs() << err;
+        continue;
+      }
+      GenPackage func = (GenPackage)rfl::GetFunctionPointerFromNativeLibrary(
+          lib, "GeneratePackage");
+      if (func == nullptr) {
+        llvm::errs() << "Could not find symbol GeneratePackage";
+        continue;
+      }
+      func(OutputName.getValue().c_str(), package.get());
+    }
+  }
   return ret;
 }
