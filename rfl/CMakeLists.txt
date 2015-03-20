@@ -1,6 +1,10 @@
 set (rfl_TARGET_TYPE SHARED)
 set (rfl_SOURCES
   annotations.h
+  dictionary.cc
+  dictionary.h
+  generator.cc
+  generator.h
   native_library.cc
   native_library.h
   reflected.cc

@@ -2,22 +2,40 @@
 #include <algorithm>
 #include <iostream>
 #include <assert.h>
+#include <fstream>
+#include <sstream>
+
 namespace rfl {
 
 Annotation::Annotation(std::string const &value, char const *file, int line)
   : value_(value), file_(file), line_(line) {}
 
 Annotation::Annotation(Annotation const &x)
-  : value_(x.value_), file_(x.file_), line_(x.line_) {}
+  : value_(x.value_), file_(x.file_), line_(x.line_), entries_(x.entries_) {
+  }
 
 Annotation &Annotation::operator= (Annotation const &x) {
   value_ = x.value_;
   file_ = x.file_;
   line_ = x.line_;
+  entries_ = x.entries_;
+      std::cout << "copys "<< x.entries_.size()<< " " << entries_.size() << std::endl;
   return *this;
 }
 
+void Annotation::AddEntry(std::string const &key, std::string const &value) {
+  entries_.insert(std::make_pair(key, value));
+}
+
+char const *Annotation::GetEntry(std::string const &key) const {
+  EntryMap::const_iterator it = entries_.find(key);
+  if (it != entries_.end())
+    return it->second.c_str();
+  return nullptr;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
+
 Reflected::Reflected(std::string const &name) : name_(name) {
 }
 
@@ -176,7 +194,7 @@ Class *Class::GetClassAt(size_t idx) const {
 Namespace::Namespace(std::string const &name,
                      Class **classes,
                      Namespace **namespaces)
-    : Reflected(name) {
+    : Reflected(name), parent_namespace_(nullptr) {
   if (classes != nullptr) {
     Class **clazz = &classes[0];
     while (*clazz != nullptr) {
@@ -225,6 +243,7 @@ Class *Namespace::GetClassAt(size_t idx) const {
 
 void Namespace::AddNamespace(Namespace *ns) {
   namespaces_.push_back(ns);
+  ns->set_parent_namespace(this);
 }
 
 void Namespace::RemoveNamespace(Namespace *ns) {
@@ -263,5 +282,93 @@ void Package::AddImport(Package *pkg) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+bool PackageManifest::Load(char const *filename) {
+  std::ifstream is(filename, std::ios_base::in);
+  std::string line;
+  std::string current_section;
+
+  while (is.good()) {
+    std::getline(is, line);
+    if (line.empty()) {
+      // Skips the empty line.
+      continue;
+    }
+    if (line[0] == '#' || line[0] == ';') {
+      // This line is a comment.
+      continue;
+    }
+    if (line[0] == '[') {
+      // It is a section header.
+      current_section = line.substr(1);
+      size_t end = current_section.rfind(']');
+      if (end != std::string::npos)
+        current_section.erase(end);
+    } else {
+      std::string key, value;
+      size_t equal = line.find('=');
+      if (equal != std::string::npos) {
+        key = line.substr(0, equal);
+        value = line.substr(equal + 1);
+        std::string whole_key = current_section;
+        if (!current_section.empty())
+          whole_key += ".";
+        whole_key += key;
+        entry_map_.insert(std::make_pair(whole_key, value));
+      }
+    }
+  }
+  is.close();
+  return true;
+}
+
+bool PackageManifest::Save(char const *filename) {
+  std::stringstream out;
+  std::vector<std::string> keys;
+  for (EntryMap::const_iterator it = entry_map_.begin(); it != entry_map_.end();
+       ++it) {
+    keys.push_back(it->first);
+  }
+  std::sort(keys.begin(), keys.end());
+  std::string current_section = "";
+  for (std::vector<std::string>::const_reverse_iterator it = keys.rbegin(); it != keys.rend(); ++it) {
+    std::string const &key = *it;
+    size_t pos = key.rfind(".", key.length()-1);
+    std::string const &value = entry_map_.find(key)->second;
+    if (pos != std::string::npos) {
+      std::string section = key.substr(0, pos);
+      if (current_section.compare(section) != 0) {
+        out << "[" << section << "]\n";
+        current_section = section;
+      }
+      out << "  " << key.substr(pos+1, key.length()-1) << " = " << value << "\n";
+    } else {
+      out << key << " = " << value << "\n";
+    }
+  }
+
+  std::ofstream file_out;
+  file_out.open(filename, std::ios_base::out);
+  file_out << out.str();
+  file_out.close();
+  return true;
+}
+
+char const *PackageManifest::GetEntry(char const *entry) const {
+  EntryMap::const_iterator it = entry_map_.find(std::string(entry));
+  if (it != entry_map_.end()) {
+    return it->second.c_str();
+  }
+  return nullptr;
+}
+
+void PackageManifest::SetEntry(char const *key, char const *value) {
+  EntryMap::iterator it = entry_map_.find(std::string(key));
+  if (it != entry_map_.end()) {
+    it->second = std::string(value);
+  } else {
+    entry_map_.insert(std::make_pair(std::string(key), std::string(value)));
+  }
+}
 
 } // namespace rfl

@@ -92,9 +92,18 @@ int main(int argc, const char **argv) {
 
   std::unique_ptr<rfl::Repository> repository(new rfl::Repository());
 
+  std::string const &output_name = OutputName.getValue();
+  std::string const &basedir = Basedir.getValue();
   std::string const &pkg_name = PackageName.getValue();
   std::string const &pkg_version = PackageVersion.getValue();
   std::unique_ptr<rfl::Package> package(new rfl::Package(pkg_name.c_str(), pkg_version.c_str()));
+  rfl::PackageManifest manifest;
+  manifest.SetEntry("package.name", pkg_name.c_str());
+  manifest.SetEntry("package.version", pkg_version.c_str());
+  manifest.SetEntry("package.library", output_name.c_str());
+  std::string manifest_file = output_name;
+  manifest_file += ".ini";
+  manifest.Save(manifest_file.c_str());
 
   // load imports
   for (std::vector<std::string>::iterator it = Imports.begin(),
@@ -102,9 +111,8 @@ int main(int argc, const char **argv) {
        it != e;
        ++it) {
     llvm::outs() << "importing " << *it << "\n";
+    //package->AddImport();
   }
-
-  std::string const &basedir = Basedir.getValue();
   std::unique_ptr<rfl::scan::ASTScannerContext> scan_ctx(
     new rfl::scan::ASTScannerContext(repository.get(), package.get(), Basedir.getValue())
     );
@@ -114,11 +122,13 @@ int main(int argc, const char **argv) {
   int ret = tool.run(factory.get());
 
   if (Generators.empty()) {
-    std::string output_name = OutputName.getValue();
-    output_name+= ".cc";
-    rfl::GeneratePackage(output_name.c_str(), package.get());
+    llvm::outs() << "Using default generator";
+    std::string filename = output_name;
+    filename+= ".cc";
+    rfl::GeneratePackage(filename.c_str(), package.get());
   } else {
     for (std::string const &generator : Generators) {
+      llvm::outs() << "Using generator " << generator;
       std::string err;
       rfl::NativeLibrary lib = rfl::LoadNativeLibrary(generator.c_str(), &err);
       if (!lib) {
@@ -131,7 +141,7 @@ int main(int argc, const char **argv) {
         llvm::errs() << "Could not find symbol GeneratePackage";
         continue;
       }
-      func(OutputName.getValue().c_str(), package.get());
+      func(output_name.c_str(), package.get());
     }
   }
   return ret;

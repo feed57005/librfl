@@ -8,6 +8,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 // non copyable
 // string constants
@@ -36,6 +37,12 @@ public:
   Annotation(std::string const &value, char const *file, int line);
   Annotation(Annotation const &x);
   Annotation &operator= (Annotation const &x);
+
+  void AddEntry(std::string const &key, std::string const &value);
+  char const *GetEntry(std::string const &key) const;
+private:
+  typedef std::map<std::string, std::string> EntryMap;
+  EntryMap entries_;
 };
 
 class RFL_EXPORT Reflected {
@@ -167,6 +174,17 @@ public:
 private:
   std::vector<Package *> imports_;
   std::string version_;
+};
+
+class RFL_EXPORT PackageManifest {
+public:
+  bool Load(char const *filename);
+  bool Save(char const *filename);
+  char const *GetEntry(char const *entry) const;
+  void SetEntry(char const *key, char const *value);
+private:
+  typedef std::map<std::string, std::string> EntryMap;
+  EntryMap entry_map_;
 };
 
 typedef Package const *(*LoadPackageFunc)();

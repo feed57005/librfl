@@ -169,26 +169,27 @@ class TypeInfo {
 
 /*----------------------------------------------------------------------------*/
 
-#define RFL_NAME_TYPE_0(export_decl, name, ...)                                           \
-  namespace rfl {                                                            \
+#define RFL_NAME_TYPE_0(export_decl, name, ...)                             \
+  namespace rfl {                                                           \
   template <typename Any>                                                   \
   struct TypeInfoModel<__VA_ARGS__, Any> {                                  \
     static const TypeInfoTable Value;                                       \
   };                                                                        \
   template <typename Any>                                                   \
   const TypeInfoTable TypeInfoModel<__VA_ARGS__, Any>::Value = {name, {0}}; \
-  extern template export_decl TypeInfo TypeInfoOf<__VA_ARGS__>(); \
+  extern template export_decl TypeInfo TypeInfoOf<__VA_ARGS__>();           \
   }  // namespace rfl
 
-#define RFL_NAME_TYPE_1(name, ...)                                \
-  namespace rfl {                                                 \
+#define RFL_NAME_TYPE_1(name, ...)                               \
+  namespace rfl {                                                \
   template <typename Any, typename ARG1>                         \
   struct TypeInfoModel<__VA_ARGS__, Any> {                       \
     static const TypeInfoTable Value;                            \
   };                                                             \
   template <typename Any, typename ARG1>                         \
   const TypeInfoTable TypeInfoModel<__VA_ARGS__, Any>::Value = { \
-      name, {&TypeInfoModel<ARG1>::Value}};                      \
+      name,                                                      \
+      {&TypeInfoModel<ARG1>::Value}};                            \
   }  // namespace rfl
 
 #define RFL_NAME_TYPE_2(name, ...)                                        \
@@ -202,10 +203,10 @@ class TypeInfo {
       name, {&TypeInfoModel<ARG1>::Value, &TypeInfoModel<ARG2>::Value}}; \
   }  // namespace rfl
 
-#define RFL_NAME_INSTANCE(...)\
-	namespace rfl {  \
-	template TypeInfo TypeInfoOf<__VA_ARGS__>(); \
-    } // namespace rfl
+#define RFL_NAME_INSTANCE(...)                 \
+  namespace rfl {                              \
+  template TypeInfo TypeInfoOf<__VA_ARGS__>(); \
+  }  // namespace rfl
 
 template <typename T>
 inline TypeInfo TypeInfoOf() {
@@ -224,29 +225,19 @@ inline TypeInfo TypeInfoOf(T const &) {
 
 }  // namespace rfl
 
-#if 0
 #include "rfl/types.h"
+#include <string>
+#include <vector>
 
-RFL_NAME_TYPE_0(RFL_EXPORT, "bool", bool)
+RFL_NAME_TYPE_0(RFL_EXPORT, "int", int)
 RFL_NAME_TYPE_0(RFL_EXPORT, "float", float)
 RFL_NAME_TYPE_0(RFL_EXPORT, "double", double)
-RFL_NAME_TYPE_0(RFL_EXPORT, "long", long)
-RFL_NAME_TYPE_0(RFL_EXPORT, "char", uint8)
-RFL_NAME_TYPE_0(RFL_EXPORT, "int32", int32)
-//RFL_NAME_TYPE_0(RFL_EXPORT, "int64", int64)
-RFL_NAME_TYPE_0(RFL_EXPORT, "uint32", uint32)
-//RFL_NAME_TYPE_0(RFL_EXPORT, "uint64", uint64)
-RFL_NAME_TYPE_0(RFL_EXPORT, "void", void)
+RFL_NAME_TYPE_0(RFL_EXPORT, "string", std::string)
 RFL_NAME_TYPE_0(RFL_EXPORT, "empty", EmptyType)
 
 RFL_NAME_TYPE_1("ptr", ARG1 *)
-RFL_NAME_TYPE_1("ref", ARG1 &)
 RFL_NAME_TYPE_1("const", ARG1 const)
-
-RFL_NAME_TYPE_0(RFL_EXPORT, "string", std::string)
-
-#include <vector>
+RFL_NAME_TYPE_1("ref", ARG1 &)
 RFL_NAME_TYPE_1("array", std::vector<ARG1>)
-#endif
 
 #endif /* __RFL_TYPEINFO_H__ */

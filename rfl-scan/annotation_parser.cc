@@ -41,6 +41,7 @@ bool AnnotationParser::Parse(std::string &err_msg) {
   if (!Tokenize() || tokens_.size() < 4) {
     return false;
   }
+#if 1
   if (tokens_[0].kind_ != kSymbol_Token ||
       tokens_[1].kind_ != kAssign_Token ||
       tokens_[2].kind_ != kCurlyBracketLeft_Token ||
@@ -54,14 +55,10 @@ bool AnnotationParser::Parse(std::string &err_msg) {
     if (t.kind_ == kSymbol_Token) {
       key = t.range_;
     } else if (t.kind_ != kAssign_Token && t.kind_ != kComma_Token) {
-      outs() << key << ": " << t.range_ << " " << t.kind_ << "\n";
+      //outs() << key << ": " << t.range_ << " " << t.kind_ << "\n";
       value_map_[key] = t.range_.str();
     }
     i++;
-  }
-#if 0
-  for (Token const &t : tokens_) {
-    outs() << "| " << t.range_ << " " << t.kind_ << "\n";
   }
 #endif
   return true;
@@ -105,16 +102,17 @@ bool AnnotationParser::TokenizeString() {
     return false;
   }
 
-  current_++; // Skip ending quote.
 
   Token t;
   t.kind_ = kString_Token;
-  t.range_ = StringRef(start, current_ - start);
+  t.range_ = StringRef(start+1, current_ - start -1);
   tokens_.push_back(t);
   if (current_ == end_) {
-    errs() << "Expected quote at end of scalar\n";
+    errs() << "Already end,Expected quote at end of scalar\n";
     return false;
   }
+
+  current_++; // Skip ending quote.
   return true;
 }
 
@@ -130,13 +128,14 @@ bool AnnotationParser::IsBlankOrBreak(StringRef::iterator position) {
 
 bool AnnotationParser::TokenizeSymbol() {
   StringRef::iterator start = current_;
-  while (!IsBlankOrBreak(current_) && *current_ != ':') {
+  while (current_ != end_ && !IsBlankOrBreak(current_) && *current_ != ':' && *current_ != '=' && *current_ != '}') {
     current_++;
   }
   Token t;
   t.kind_ = kSymbol_Token;
   t.range_ = StringRef(start, current_ - start);
   tokens_.push_back(t);
+  //errs() << t.range_.str() << "\n";
   return true;
 }
 
@@ -172,7 +171,17 @@ bool AnnotationParser::Tokenize() {
   current_ = buffer_->getBufferStart();
   end_ = buffer_->getBufferEnd();
   tokens_.clear();
+#if 0
+  errs() << "'";
   while (current_ != end_) {
+    errs() << *current_;
+    current_++;
+  }
+  errs() << "'\n";
+#endif
+  current_ = buffer_->getBufferStart();
+  while (current_ != end_) {
+    //errs() << (int) *current_ << "'" << *current_ << "'\n";
     switch (*current_) {
       case (':'):
       case ('='): {
@@ -207,17 +216,23 @@ bool AnnotationParser::Tokenize() {
         current_++;
         break;
       }
-      case ('\"'): {
+      case ('"'): {
         TokenizeString();
         break;
       }
       case (' '):
       case ('\t'):
+      case ('\n'):
+      case ('\r'):
         current_++;
         break;
 
       case ('_'):
         TokenizeSymbol();
+        break;
+
+      case ('.'):
+        TokenizeNumber();
         break;
 
       default: {
@@ -226,7 +241,7 @@ bool AnnotationParser::Tokenize() {
         } else if (isdigit(*current_)) {
           TokenizeNumber();
         } else {
-          errs() << "Unknown character " << *current_ << "\n";
+          errs() << "Unknown character '" << *current_ << "'\n";
           return false;
         }
         break;

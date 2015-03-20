@@ -4,6 +4,7 @@
 #include <cstddef>
 
 namespace test {
+static int g_Global = 22;
 
 TestObject::TestObject() {}
 
@@ -14,9 +15,9 @@ TestBaseObject::TestBaseObject()
     : int_value_(23),
       float_value_(23.23),
       ptr_value_(nullptr),
-      cptr_value_(nullptr),
-      ref_value_(g_Global),
-      cref_value_(g_Global) {
+      cptr_value_(nullptr)
+      /*ref_value_(g_Global),
+      cref_value_(g_Global) */{
 }
 
 //rfl_attr(destructor_def)

@@ -2,14 +2,13 @@
 #define __TEST_ANNOTATIONS_H__
 
 #include "rfl/annotations.h"
+#include "object.h"
 
 namespace test {
 
 class TestBaseObject;
 
-static int g_Global = 23;
-
-class rfl_class(name = "Test Object Base") TestBaseObject {
+class rfl_class(name="Test Base Object", package="test_annotations") TestBaseObject : public test::Object {
 public:
   TestBaseObject();
   ~TestBaseObject();
@@ -47,12 +46,15 @@ private:
 
   rfl_property(id="ptr",
                kind="pointer",
-               name="Pointer") int *ptr_value_;
+               name="Pointer",
+               default="nullptr") int *ptr_value_;
 
   rfl_property(id="cptr",
                kind="pointer",
-               name="Const Pointer") int const *cptr_value_;
-
+               name="Const Pointer",
+               default="nullptr"
+               ) int const *cptr_value_;
+/*
   rfl_property(id="ref",
                kind="reference",
                name="Reference") int &ref_value_;
@@ -64,10 +66,10 @@ private:
   rfl_property(id="int4_array",
                kind="array",
                name="Int4 Array") int int4_array_[4];
-
+*/
 };
 
-class rfl_class(name = "Test Object") TestObject : public TestBaseObject {
+class rfl_class(name = "Test Object", package="test_annotations") TestObject : public TestBaseObject {
 public:
   TestObject();
   ~TestObject();

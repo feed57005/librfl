@@ -306,12 +306,17 @@ public:
   /** @return true when this instance helds an empty type */
   inline bool IsEmpty() const { return GetType() == TypeInfoOf<EmptyType>(); }
 
+  static AnyVar const &empty() {
+    static AnyVar empty_var;
+    return empty_var;
+  }
+
 private:
   inline AnyVarModel &GetModel() {
     return *static_cast<AnyVarModel *>((void *)&storage_);
   }
 
-  inline const AnyVarModel &GetModel() const {
+  inline AnyVarModel const &GetModel() const {
     return *static_cast<AnyVarModel const *>((void *)&storage_);
   }
 

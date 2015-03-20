@@ -1,0 +1,71 @@
+#include "object.h"
+#include <iostream>
+
+std::ostream &operator<<(std::ostream &out, rfl::AnyVar const &value) {
+  rfl::TypeInfo type = value.GetType();
+  if (type == rfl::TypeInfoOf<int>()) {
+    out << value.Cast<int>();
+  } else if (type == rfl::TypeInfoOf<float>()) {
+    out << value.Cast<float>();
+  } else if (type == rfl::TypeInfoOf<std::string>()) {
+    out << value.Cast<std::string>();
+  } else {
+    out << type.GetName();
+  }
+  return out;
+}
+
+rfl::AnyVar get(test::Object *instance, test::Property *prop) {
+  rfl::AnyVar var = prop->default_value();
+  rfl::TypeInfo type = var.GetType();
+  if (type == rfl::TypeInfoOf<int>()) {
+    int &val = var.Cast<int>();
+    val = prop->Get<int>(instance);
+  } else if (type == rfl::TypeInfoOf<float>()) {
+    float &val = var.Cast<float>();
+    val = prop->Get<float>(instance);
+  } else if (type == rfl::TypeInfoOf<std::string>()) {
+    std::string &val = var.Cast<std::string>();
+    val = prop->Get<std::string>(instance);
+  }
+  return var;
+}
+
+struct PropEnum {
+  PropEnum(test::Object *instance) : instance_(instance) {}
+  void operator()(test::Property *prop) const {
+    rfl::AnyVar val = get(instance_, prop);
+    std::cout << prop->name() << " (" << prop->default_value() << ") = " << val << std::endl;
+  }
+  test::Object *instance_;
+};
+
+int main(int argc, char **argv) {
+  using namespace test;
+  if (argc < 3) {
+    std::cout << argv[0] << "<package> <class>" << std::endl;
+    return -1;
+  }
+
+  ClassRepository *repo = ClassRepository::GetSharedInstance();
+  if (!repo->LoadPackage(argv[1])) {
+    std::cerr << "failed to load package " << argv[1] << std::endl;
+    return -1;
+  }
+
+  ObjectClass *klass = repo->GetClassByName(argv[2]);
+  if (!klass) {
+    std::cerr << "failed to find class " << argv[2] << std::endl;
+    return -1;
+  }
+
+  Object *obj = klass->CreateInstance();
+  if (!obj) {
+    std::cerr << "failed to create class instance " << argv[2] << std::endl;
+    return -1;
+  }
+
+  klass->EnumerateProperties(PropEnum(obj));
+
+  return 0;
+}

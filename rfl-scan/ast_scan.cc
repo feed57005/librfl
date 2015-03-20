@@ -5,6 +5,10 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/AST/RecordLayout.h"
 
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/FileSystem.h"
+
 #include <string>
 #include <vector>
 
@@ -13,8 +17,19 @@
 namespace rfl {
 namespace scan {
 
+struct AnnoInserter {
+  AnnoInserter(Annotation *anno) : anno_(anno) {}
+
+  void operator()(std::string const &key, std::string const &value) const {
+    anno_->AddEntry(key,value);
+  }
+
+  Annotation *anno_;
+};
+
 ASTScanner::ASTScanner(ASTScannerContext *scan_ctx, raw_ostream *out)
-    : context_(nullptr), out_(out ? *out : outs()), scanner_context_(scan_ctx) {}
+    : scanner_context_(scan_ctx), context_(nullptr), out_(out ? *out : outs()) {
+}
 
 void ASTScanner::HandleTranslationUnit(ASTContext &Context) {
   TranslationUnitDecl *D = Context.getTranslationUnitDecl();
@@ -65,7 +80,47 @@ static std::string StripBasedir(std::string const &filename,
     return filename.substr(basedir.length() + 1,
                            filename.length() - basedir.length());
   }
-  return std::string();
+  return filename;
+}
+
+static std::string PathRelativeToBaseDir(PresumedLoc const &presumed_loc,
+                                         SourceManager const &src_manager,
+                                         StringRef const &basedir) {
+  StringRef hfile(presumed_loc.getFilename());
+  SmallString<256> path(hfile.begin(), hfile.end());
+  sys::fs::make_absolute(path);
+  SmallVector<StringRef,16> components;
+  SmallVector<StringRef, 16>::iterator comp_it = components.begin();
+  for (sys::path::const_iterator path_it = sys::path::begin(path);
+       path_it != sys::path::end(path); ++path_it) {
+    StringRef component = *path_it;
+    if (component.size() > 0 && component[0] == '.') {
+        if (component.size() == 2 && comp_it > components.begin()){
+          --comp_it;
+        }
+    } else {
+      if (!component.empty())
+        components.insert(comp_it++, component);
+    }
+  }
+  components.resize(comp_it - components.begin());
+
+  SmallString<256> full_path;
+  SmallVector<StringRef, 16>::const_iterator it = components.begin();
+  if (it != components.end()) {
+    ++it;
+  }
+  for (; it != components.end(); ++it) {
+    StringRef comp = *it;
+    full_path.append(sys::path::get_separator());
+    full_path.append(comp.begin(), comp.end());
+  }
+
+  StringRef path_str = full_path.str();
+  if (path_str.size() > basedir.size() && path_str.startswith(basedir)) {
+    path_str = path_str.substr(basedir.size()+1, path_str.size());
+  }
+  return path_str.str();
 }
 
 bool ASTScanner::ReadAnnotation(NamedDecl *D, Annotation *anno) {
@@ -81,27 +136,22 @@ bool ASTScanner::ReadAnnotation(NamedDecl *D, Annotation *anno) {
   StringRef attribute_text = attribute->getAnnotation();
 
   SourceManager const &src_manager = context_->getSourceManager();
-
-  // Decipher the source location of the attribute for error reporting
   SourceLocation location = attribute->getLocation();
   PresumedLoc presumed_loc = src_manager.getPresumedLoc(location);
-  std::string filename = StripBasedir(presumed_loc.getFilename(), basedir());
-  int line = presumed_loc.getLine();
-  anno->value_ = attribute_text.str();
-  anno->file_ = filename;
-  anno->line_ = line;
 
-#if 0
-  out_ <<"$$$ "<< anno->value_ << "\n";
+  anno->value_ = attribute_text.str();
+  anno->file_ = PathRelativeToBaseDir(presumed_loc, src_manager, StringRef(basedir()));
+  anno->line_ = presumed_loc.getLine();
+
   std::string err_msg;
   std::unique_ptr<AnnotationParser> parser =
     AnnotationParser::loadFromBuffer(StringRef(anno->value_), err_msg);
   if (parser == nullptr) {
-    errs() << "Failed to parse annotation: " << err_msg << "\n at " << filename << ":"<< line << "\n";
+    errs() << "Failed to parse annotation: '" << anno->value_ << "'\n"
+           << err_msg << "\n at " << anno->file_ << ":" << anno->line_ << "\n";
     return false;
   }
-  out_ << "annotation name:'"<< parser->GetValue("name") << "'\n";
-#endif
+  parser->Enumerate(AnnoInserter(anno));
   return true;
 }
 
@@ -174,7 +224,7 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
             }
           } else {
             errs() << "Unable to find base class \n";
-            return true;
+            //return true;
           }
         }
       }
