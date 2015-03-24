@@ -42,26 +42,26 @@ struct PropEnum {
 
 int main(int argc, char **argv) {
   using namespace test;
-  if (argc < 3) {
-    std::cout << argv[0] << "<package> <class>" << std::endl;
+  if (argc < 4) {
+    std::cout << argv[0] << "<path> <package> <class>" << std::endl;
     return -1;
   }
 
   ClassRepository *repo = ClassRepository::GetSharedInstance();
-  if (!repo->LoadPackage(argv[1])) {
+  if (!repo->LoadPackage(argv[1], argv[2])) {
     std::cerr << "failed to load package " << argv[1] << std::endl;
     return -1;
   }
 
-  ObjectClass *klass = repo->GetClassByName(argv[2]);
+  ObjectClass *klass = repo->GetClassByName(argv[3]);
   if (!klass) {
-    std::cerr << "failed to find class " << argv[2] << std::endl;
+    std::cerr << "failed to find class " << argv[3] << std::endl;
     return -1;
   }
 
   Object *obj = klass->CreateInstance();
   if (!obj) {
-    std::cerr << "failed to create class instance " << argv[2] << std::endl;
+    std::cerr << "failed to create class instance " << argv[3] << std::endl;
     return -1;
   }
 

@@ -7,12 +7,13 @@ function (add_module mid)
 
   # prepare sources
   set (sources ${${mid}_SOURCES})
-  
+
   # handle custom deps generated sources
   if (${mid}_CUSTOM_DEPS)
     foreach (cust_dep ${${mid}_CUSTOM_DEPS})
       # append generated sources to target
       list (APPEND sources ${${cust_dep}_SOURCES})
+      # XXX this causes files to be deleted upon clean!
       set_source_files_properties (${${cust_dep}_SOURCES} PROPERTIES
         GENERATED ON)
       if (OS_MAC)
@@ -41,13 +42,12 @@ function (add_module mid)
       endif ()
     endif ()
   endif ()
-  #foreach (src ${${mid}_SOURCES})
-  #  list (APPEND sources ${CMAKE_SOURCE_DIR}/${mid}/${src})
-  #endforeach ()
-
 
   # create target
-  if (target_type STREQUAL "STATIC" OR target_type STREQUAL "SHARED")
+  if (target_type STREQUAL "STATIC"
+      OR target_type STREQUAL "SHARED"
+      OR target_type STREQUAL "OBJECT"
+      OR target_type STREQUAL "MODULE")
     add_library (${mid} ${target_type} ${sources})
   else ()
     if (APPLE AND target_type STREQUAL "app")
@@ -67,7 +67,7 @@ function (add_module mid)
   #message ("${mid} - ${${mid}_DEPS}")
 
   # handle custom dependencies resources
-  if (OS_WIN AND ${mid}_CUSTOM_DEPS)
+  if ( (OS_WIN OR OS_LINUX) AND ${mid}_CUSTOM_DEPS)
     foreach (cust_dep ${${mid}_CUSTOM_DEPS})
         # create resource output directory
         if (${cust_dep}_OUTPUT_DIR)
@@ -123,6 +123,7 @@ function (add_module mid)
 
   # setup & link libraries and frameworks
   set (lib_deps ${${mid}_DEPS} ${${mid}_LIBS})
+  set (lib_priv_deps ${${mid}_PRIV_DEPS})
 	if (OS_MAC AND ${mid}_FRAMEWORKS)
 		foreach (fmw ${${mid}_FRAMEWORKS})
       find_library (${fmw}_FMW ${fmw})
@@ -130,61 +131,54 @@ function (add_module mid)
 		endforeach ()
 	endif ()
   #message ("${mid} - ${lib_deps}")
-	if (lib_deps)
-		target_link_libraries (${mid} ${lib_deps})
+  if (lib_deps AND NOT target_type STREQUAL "OBJECT"
+       AND NOT target_type STREQUAL "MODULE")
+    target_link_libraries (${mid}
+      LINK_PUBLIC ${lib_deps}
+      LINK_PRIVATE ${lib_priv_deps})
 	endif ()
 
-  #!! already done
-  #  if (${mid}_CUSTOM_DEPS)
-  #    #message ("${mid} - ${${mid}_CUSTOM_DEPS}")
-  #    add_dependencies(${mid} ${${mid}_CUSTOM_DEPS})
-  #  endif ()
+  set_module_output_directories (${mid} bin lib lib)
 
-  # setup output directories
+  if (APPLE AND target_type STREQUAL "app")
+    set_target_properties (${mid} PROPERTIES
+       MACOSX_BUNDLE_BUNDLE_NAME ${mid}
+       MACOSX_BUNDLE_GUI_IDENTIFIER "${mid}"
+       MACOSX_BUNDLE_ICON_FILE application.icns
+       MACOSX_BUNDLE_INFO_STRING "${${mid}_MACOSX_BUNDLE_VERSION} ${mid}"
+       MACOSX_BUNDLE_SHORT_VERSION_STRING "${${mid}_MACOSX_BUNDLE_VERSION}"
+       MACOSX_BUNDLE_LONG_VERSION_STRING "${${mid}_MACOSX_BUNDLE_VERSION}"
+       MACOSX_BUNDLE_BUNDLE_VERSION "${${mid}_MACOSX_BUNDLE_VERSION}"
+       MACOSX_BUNDLE_COPYRIGHT "${PROJECT_COPYRIGHT}"
+      )
+    if (${mid}_MACOSX_PLIST)
+      set_target_properties(${mid} PROPERTIES
+        MACOSX_BUNDLE_INFO_PLIST ${${mid}_MACOSX_PLIST})
+    endif ()
+    if (${mid}_MACOSX_BUNDLE_NAME)
+      set_target_properties(${mid} PROPERTIES
+        MACOSX_BUNDLE_BUNDLE_NAME ${${mid}_MACOSX_BUNDLE_NAME})
+    endif ()
+  endif ()
+endfunction ()
+
+function (set_module_output_directories mid bin arch lib)
   if (MSVC)
     set (cfgs ${CMAKE_CONFIGURATION_TYPES})
-
     foreach (cfg ${cfgs})
       string (TOUPPER "${cfg}" cfg_upper)
       set (cfg_build_dir ${CMAKE_BINARY_DIR}/${cfg})
       set_target_properties (${mid} PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY_${cfg_upper} ${cfg_build_dir}/lib
-        RUNTIME_OUTPUT_DIRECTORY_${cfg_upper} ${cfg_build_dir}/bin
-        LIBRARY_OUTPUT_DIRECTORY_${cfg_upper} ${cfg_build_dir}/lib
+        RUNTIME_OUTPUT_DIRECTORY_${cfg_upper} ${cfg_build_dir}/${bin}
+        ARCHIVE_OUTPUT_DIRECTORY_${cfg_upper} ${cfg_build_dir}/${arch}
+        LIBRARY_OUTPUT_DIRECTORY_${cfg_upper} ${cfg_build_dir}/${lib}
         )
     endforeach ()
-  elseif (OS_LINUX)
+  else ()
     set_target_properties (${mid} PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}"
-      ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}-arch"
-      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}-lib"
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${bin}"
+      ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${arch}"
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${lib}"
       )
-  elseif (APPLE)
-    set_target_properties (${mid} PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}"
-      ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}-arch"
-      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}-lib"
-      )
-
-    if (target_type STREQUAL "app")
-      set_target_properties (${mid} PROPERTIES
-         MACOSX_BUNDLE_BUNDLE_NAME ${mid} 
-         MACOSX_BUNDLE_GUI_IDENTIFIER "${mid}"
-         MACOSX_BUNDLE_ICON_FILE application.icns 
-         MACOSX_BUNDLE_INFO_STRING "${${mid}_MACOSX_BUNDLE_VERSION} ${mid}" 
-         MACOSX_BUNDLE_SHORT_VERSION_STRING "${${mid}_MACOSX_BUNDLE_VERSION}" 
-         MACOSX_BUNDLE_LONG_VERSION_STRING "${${mid}_MACOSX_BUNDLE_VERSION}" 
-         MACOSX_BUNDLE_BUNDLE_VERSION "${${mid}_MACOSX_BUNDLE_VERSION}" 
-         MACOSX_BUNDLE_COPYRIGHT "(c) 2014 Pavel Novy" 
-        )
-      if (${mid}_MACOSX_PLIST)
-        set_target_properties(${mid} PROPERTIES
-          MACOSX_BUNDLE_INFO_PLIST ${${mid}_MACOSX_PLIST})
-      endif ()
-      if (${mid}_MACOSX_BUNDLE_NAME)
-        set_target_properties(${mid} PROPERTIES
-          MACOSX_BUNDLE_BUNDLE_NAME ${${mid}_MACOSX_BUNDLE_NAME})
-      endif ()
-    endif ()
   endif ()
 endfunction ()

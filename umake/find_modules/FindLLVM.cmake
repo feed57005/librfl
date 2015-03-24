@@ -1,4 +1,4 @@
-# - Find LLVM 
+# -   Find LLVM
 # This module can be used to find LLVM.
 # It requires that the llvm-config executable be available on the system path.
 # Once found, llvm-config is used for everything else.
@@ -15,7 +15,7 @@
 #
 # LLVM_FOUND        - Set to YES if LLVM is found.
 # LLVM_VERSION      - Set to the decimal version of the LLVM library.
-# LLVM_C_FLAGS      - All flags that should be passed to a C compiler. 
+# LLVM_C_FLAGS      - All flags that should be passed to a C compiler.
 # LLVM_CXX_FLAGS    - All flags that should be passed to a C++ compiler.
 # LLVM_CPP_FLAGS    - All flags that should be passed to the C pre-processor.
 # LLVM_LD_FLAGS     - Additional flags to pass to the linker.
@@ -23,7 +23,7 @@
 # LLVM_INCLUDE_DIRS - A list of directories where the LLVM headers are located.
 # LLVM_LIBRARIES    - A list of libraries which should be linked against.
 
-find_program(_llvm_config_exe 
+find_program(_llvm_config_exe
     NAMES llvm-config
     HINTS $ENV{LLVM_PATH}/bin
     DOC "llvm-config executable location"
@@ -39,15 +39,15 @@ macro(_llvm_config _var_name)
   else(NOT _llvm_config_exe)
     # Otherwise, run llvm-config
     string (REPLACE ";" " " ARG "${ARGN}")
-    message ("-- '${_llvm_config_exe}' '${ARG}'")
+    #message ("-- '${_llvm_config_exe}' '${ARGN}'")
     execute_process(
       COMMAND ${_llvm_config_exe} ${ARGN}
       OUTPUT_VARIABLE ${_var_name}
       RESULT_VARIABLE _llvm_config_retval
       OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-      message ("${_var_name}:${${_var_name}}")
-    #set (${_var_name} ${${_var_name}} CACHE INTERNAL "" FORCE)
+    #message ("${_var_name}:${${_var_name}}")
+    set (${_var_name} ${${_var_name}} CACHE INTERNAL "" FORCE)
     #if(_llvm_config_retval)
     #  message(SEND_ERROR
     #    "Error running llvm-config with arguments: ${ARG}")
@@ -68,12 +68,12 @@ if(NOT LLVM_FIND_QUIETLY)
 endif(NOT LLVM_FIND_QUIETLY)
 
 _llvm_config(LLVM_VERSION --version)
-_llvm_config(LLVM_C_FLAGS --cflags ${_llvm_components})
-_llvm_config(LLVM_CXX_FLAGS --cxxflags ${_llvm_components})
-_llvm_config(LLVM_CPP_FLAGS --cppflags ${_llvm_components})
-_llvm_config(LLVM_LD_FLAGS --ldflags ${_llvm_components})
-_llvm_config(LLVM_LIBRARY_DIRS --libdir ${_llvm_components})
-_llvm_config(LLVM_INCLUDE_DIRS --includedir ${_llvm_components})
+_llvm_config(LLVM_C_FLAGS --cflags)
+_llvm_config(LLVM_CXX_FLAGS --cxxflags)
+_llvm_config(LLVM_CPP_FLAGS --cppflags)
+_llvm_config(LLVM_LD_FLAGS --ldflags)
+_llvm_config(LLVM_LIBRARY_DIRS --libdir)
+_llvm_config(LLVM_INCLUDE_DIRS --includedir)
 _llvm_config(LLVM_LIBRARIES --libs ${_llvm_components})
 _llvm_config(LLVM_SYSLIBRARIES --system-libs)
 set (LLVM_LIBRARIES "${LLVM_LIBRARIES} ${LLVM_SYSLIBRARIES}")
@@ -81,13 +81,16 @@ if(NOT LLVM_FIND_QUIETLY)
   message(STATUS "Found LLVM version: ${LLVM_VERSION}")
 endif(NOT LLVM_FIND_QUIETLY)
 
-# handle the QUIETLY and REQUIRED arguments and set LLVM_FOUND to TRUE if 
+# handle the QUIETLY and REQUIRED arguments and set LLVM_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(LLVM
-  DEFAULT_MSG 
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(LLVM
+  DEFAULT_MSG
   LLVM_LIBRARIES
-  LLVM_INCLUDE_DIRS 
+  LLVM_INCLUDE_DIRS
   LLVM_LIBRARY_DIRS)
+if (LLVM_FOUND)
+  set (LLVM_FOUND TRUE CACHE INTERNAL "")
+endif ()
 
 # vim:sw=4:ts=4:autoindent

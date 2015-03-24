@@ -1,12 +1,11 @@
 cmake_minimum_required (VERSION 2.8)
 include(umake/UMakeInit.cmake)
 
+add_subdirectory (third_party/test)
+
 if (COMPILER_CLANG OR COMPILER_GCC)
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions -std=c++11")
 endif ()
-
-add_subdirectory (third_party/cmph)
-add_subdirectory (third_party/test)
 
 include_directories(. ${CMAKE_BINARY_DIR})
 add_subdirectory (rfl)

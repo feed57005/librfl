@@ -1,4 +1,5 @@
 #include "object.h"
+#include "package_manifest.h"
 #include <iostream>
 
 namespace test {
@@ -60,10 +61,24 @@ ObjectClass *ClassRepository::GetClassByName(char const *name) {
   return nullptr;
 }
 
-bool ClassRepository::LoadPackage(char const *pkgname) {
+bool ClassRepository::LoadPackage(char const *path, char const *pkgname) {
   std::string err;
-  std::string path = pkgname;
-  rfl::NativeLibrary lib = rfl::LoadNativeLibrary(path.c_str(), &err);
+  std::string manifest_path = path;
+  manifest_path += "/";
+  manifest_path += pkgname;
+  manifest_path += ".ini";
+
+  PackageManifest manifest;
+  if (!manifest.Load(manifest_path.c_str())) {
+    std::cerr << "Unable to load manifest " << manifest_path << std::endl;
+    return false;
+  }
+
+  std::string lib_path = path;
+  lib_path += "/";
+  lib_path += manifest.GetEntry("package.library");
+  std::cout << "loading library " << lib_path;
+  rfl::NativeLibrary lib = rfl::LoadNativeLibrary(lib_path.c_str(), &err);
   if (!lib) {
     std::cerr << err << std::endl;
     return false;

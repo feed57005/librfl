@@ -168,11 +168,19 @@ public:
           std::string const &version,
           Namespace **nested = nullptr);
 
-  void AddImport(Package *pkg);
+  void AddImport(std::string const &import);
+  std::string const &GetImportAt(int idx) const;
+  int GetImportNum() const;
+
+  void AddLibrary(std::string const &import);
+  std::string const &GetLibraryAt(int idx) const;
+  int GetLibraryNum() const;
+
   std::string const &version() const { return version_; }
 
 private:
-  std::vector<Package *> imports_;
+  std::vector<std::string> imports_;
+  std::vector<std::string> libs_;
   std::string version_;
 };
 

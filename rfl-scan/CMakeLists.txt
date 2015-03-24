@@ -13,12 +13,22 @@ set (rfl-scan_SOURCES
 set (rfl-scan_TARGET_TYPE executable)
 set (implicit "")
 
+# FIXME grab implicit includes by running compiler
+#   clang++ -E -x c++ - -v < /dev/null
+#   g++ -E -x c++ - -v < /dev/null
 set (implicit_includes "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}")
 if (OS_LINUX)
   list (APPEND implicit_includes
     /usr/include/x86_64-linux-gnu
     /usr/lib/gcc/x86_64-linux-gnu/4.7/include
     /usr/lib/gcc/x86_64-linux-gnu/4.7/include-fixed
+    )
+elseif (OS_MAC)
+  set (toolchain_path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain)
+  list (APPEND implicit_includes
+    ${toolchain_path}/usr/include/c++/v1
+    ${toolchain_path}/usr/lib/clang/6.0/include/
+    ${toolchain_path}/usr/include
     )
 endif ()
 

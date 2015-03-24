@@ -42,7 +42,7 @@ class ClassRepository {
 public:
   static ClassRepository *GetSharedInstance();
 
-  bool LoadPackage(char const *pkgname);
+  bool LoadPackage(char const *path, char const *pkgname);
 
   bool RegisterClass(ObjectClass *klass);
   bool UnregisterClass(ObjectClass *klass);

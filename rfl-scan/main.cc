@@ -34,22 +34,28 @@ static cl::list<std::string> Generators("G",
                                         cl::value_desc("generator-name"),
                                         cl::cat(RflScanCategory));
 static cl::list<std::string> Imports("i",
-                                     cl::Prefix, cl::ZeroOrMore,
+                                     cl::Prefix,
+                                     cl::ZeroOrMore,
                                      cl::desc("import rfl library"),
                                      cl::cat(RflScanCategory));
+static cl::list<std::string> Libs("l",
+                                  cl::Prefix,
+                                  cl::ZeroOrMore,
+                                  cl::desc("link library"),
+                                  cl::cat(RflScanCategory));
 
 static cl::opt<std::string> OutputName("output",
-                                      cl::desc("output file name prefix"),
-                                      cl::cat(RflScanCategory));
+                                       cl::desc("output file name prefix"),
+                                       cl::cat(RflScanCategory));
 static cl::opt<std::string> PackageName("pkg-name",
-                                      cl::desc("package name"),
-                                      cl::cat(RflScanCategory));
+                                        cl::desc("package name"),
+                                        cl::cat(RflScanCategory));
 static cl::opt<std::string> PackageVersion("pkg-version",
-                                      cl::desc("package version"),
-                                      cl::cat(RflScanCategory));
+                                           cl::desc("package version"),
+                                           cl::cat(RflScanCategory));
 static cl::opt<std::string> Basedir("basedir",
-                                      cl::desc("package basedir"),
-                                      cl::cat(RflScanCategory));
+                                    cl::desc("package basedir"),
+                                    cl::cat(RflScanCategory));
 
 ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
   return [extra] (CommandLineArguments const &args){
@@ -74,7 +80,16 @@ int main(int argc, const char **argv) {
 
   CommandLineArguments extra_args;
 
+  std::string pkg_upper = PackageName.getValue();
+  std::transform(pkg_upper.begin(), pkg_upper.end(), pkg_upper.begin(), ::toupper);
+
+  extra_args.push_back(
+      Twine("-D")
+          .concat(Twine(pkg_upper).concat("_IMPLEMENTATION"))
+          .str());
   extra_args.push_back("-D__RFL_SCAN__");
+
+  // split and insert IMPLICIT includes
   std::istringstream iss(std::string(IMPLICIT));
   std::copy(std::istream_iterator<std::string>(iss),
             std::istream_iterator<std::string>(),
@@ -97,22 +112,21 @@ int main(int argc, const char **argv) {
   std::string const &pkg_name = PackageName.getValue();
   std::string const &pkg_version = PackageVersion.getValue();
   std::unique_ptr<rfl::Package> package(new rfl::Package(pkg_name.c_str(), pkg_version.c_str()));
-  rfl::PackageManifest manifest;
-  manifest.SetEntry("package.name", pkg_name.c_str());
-  manifest.SetEntry("package.version", pkg_version.c_str());
-  manifest.SetEntry("package.library", output_name.c_str());
-  std::string manifest_file = output_name;
-  manifest_file += ".ini";
-  manifest.Save(manifest_file.c_str());
 
   // load imports
   for (std::vector<std::string>::iterator it = Imports.begin(),
                                           e = Imports.end();
-       it != e;
-       ++it) {
+       it != e; ++it) {
     llvm::outs() << "importing " << *it << "\n";
-    //package->AddImport();
+    package->AddImport(*it);
   }
+
+  for (std::vector<std::string>::iterator it = Libs.begin(), e = Libs.end();
+       it != e; ++it) {
+    llvm::outs() << "adding library " << *it << "\n";
+    package->AddLibrary(*it);
+  }
+
   std::unique_ptr<rfl::scan::ASTScannerContext> scan_ctx(
     new rfl::scan::ASTScannerContext(repository.get(), package.get(), Basedir.getValue())
     );

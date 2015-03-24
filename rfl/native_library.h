@@ -15,7 +15,7 @@ typedef HMODULE NativeLibrary;
 #endif
 
 RFL_EXPORT NativeLibrary
-    LoadNativeLibrary(char const *path, std::string *err = NULL);
+LoadNativeLibrary(char const *path, std::string *err = NULL);
 
 RFL_EXPORT void UnloadNativeLibrary(NativeLibrary nl);
 

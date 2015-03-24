@@ -277,10 +277,29 @@ Package::Package(std::string const &name,
     : Namespace(name, nullptr, nested), version_(version) {
 }
 
-void Package::AddImport(Package *pkg) {
-  imports_.push_back(pkg);
+void Package::AddImport(std::string const &import) {
+  imports_.push_back(import);
 }
 
+std::string const &Package::GetImportAt(int idx) const {
+  return imports_[idx];
+}
+
+int Package::GetImportNum() const {
+  return (int) imports_.size();
+}
+
+void Package::AddLibrary(std::string const &import) {
+  libs_.push_back(import);
+}
+
+std::string const &Package::GetLibraryAt(int idx) const {
+  return libs_[idx];
+}
+
+int Package::GetLibraryNum() const {
+  return (int) libs_.size();
+}
 ////////////////////////////////////////////////////////////////////////////////
 
 bool PackageManifest::Load(char const *filename) {
