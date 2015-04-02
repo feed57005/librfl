@@ -69,7 +69,7 @@ int Gen::BeginPackage(Package const *pkg) {
 
   header_prologue_ = hout_.str();
 
-  hout_ = std::stringstream();
+  hout_.str(std::string());
 
 
   std::string header_file = output_path_;

@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 
 namespace test {
 
@@ -38,14 +39,19 @@ bool PackageManifest::Load(char const *filename) {
         key_start++;
       size_t equal = line.find('=');
       if (equal != std::string::npos) {
-        key = line.substr(key_start, equal);
-        value = line.substr(equal + 1);
+        size_t key_end = equal-1;
+        while (key_end > 0 && (line[key_end] == ' ' || line[key_end] == '\t'))
+          key_end--;
+        key = line.substr(key_start, key_end-1);
+        size_t value_start = equal + 1;
+        while (line[value_start] == ' ' || line[value_start] == '\t')
+          value_start++;
+        value = line.substr(value_start);
         std::string whole_key = current_section;
         if (!current_section.empty())
           whole_key += ".";
         whole_key += key;
         entry_map_.insert(std::make_pair(whole_key, value));
-        std::cout << "'"<< whole_key << "' : '" << value << "'" <<  std::endl;
       }
     }
   }

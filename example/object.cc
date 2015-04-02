@@ -77,7 +77,7 @@ bool ClassRepository::LoadPackage(char const *path, char const *pkgname) {
   std::string lib_path = path;
   lib_path += "/";
   lib_path += manifest.GetEntry("package.library");
-  std::cout << "loading library " << lib_path;
+  std::cout << "loading library " << lib_path << std::endl;
   rfl::NativeLibrary lib = rfl::LoadNativeLibrary(lib_path.c_str(), &err);
   if (!lib) {
     std::cerr << err << std::endl;

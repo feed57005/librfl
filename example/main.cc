@@ -43,7 +43,7 @@ struct PropEnum {
 int main(int argc, char **argv) {
   using namespace test;
   if (argc < 4) {
-    std::cout << argv[0] << "<path> <package> <class>" << std::endl;
+    std::cout << argv[0] << " <path> <package> <class>" << std::endl;
     return -1;
   }
 
