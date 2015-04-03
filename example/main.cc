@@ -65,6 +65,9 @@ int main(int argc, char **argv) {
     return -1;
   }
 
+  std::cout << "ClassID: " << klass->class_id()
+            << " parent ID: " << klass->parent_class_id() << std::endl;
+
   klass->EnumerateProperties(PropEnum(obj));
 
   return 0;

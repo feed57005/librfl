@@ -14,7 +14,7 @@ public:
   void SetEntry(char const *key, char const *value);
 
   template <class E>
-  void Enumerate(E const &enumerator) const {
+  void Enumerate(E &enumerator) const {
     for (EntryMap::const_iterator it = entry_map_.begin();
          it != entry_map_.end(); ++it) {
       enumerator(it->first, it->second);

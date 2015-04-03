@@ -73,9 +73,27 @@ int Gen::BeginPackage(Package const *pkg) {
 
 
   std::string header_file = output_path_;
-  header_file += ".h";
+  header_file += "_rfl.h";
   AddInclude(header_file, src_includes_);
   return 0;
+}
+
+std::string GetLibraryForName(std::string const &name, char const *suffix) {
+  std::string lib_name;
+#if defined(__APPLE__) || defined(__linux__)
+  lib_name = "lib";
+#endif
+  lib_name += name;
+  if (suffix != nullptr)
+    lib_name += suffix;
+#if defined(__APPLE__)
+  lib_name += ".dylib";
+#elif defined(__linux__)
+  lib_name += ".so";
+#elif defined(WIN32)
+  lib_name += ".dll";
+#endif
+  return lib_name;
 }
 
 int Gen::EndPackage(Package const *) {
@@ -91,7 +109,7 @@ int Gen::EndPackage(Package const *) {
 
   std::ofstream file_out;
   std::string path = output_path_;
-  path += ".cc";
+  path += "_rfl.cc";
   file_out.open(path, std::ios_base::out);
   for (std::string const &include : src_includes_) {
     file_out << "#include \"" << include << "\"\n";
@@ -101,7 +119,7 @@ int Gen::EndPackage(Package const *) {
   file_out.close();
 
   path = output_path_;
-  path += ".h";
+  path += "_rfl.h";
   file_out.open(path, std::ios_base::out);
   file_out << header_prologue_;
   for (std::string const &include : h_includes_) {
@@ -115,28 +133,17 @@ int Gen::EndPackage(Package const *) {
   manifest.SetEntry("package.name", generated_package_->name().c_str());
   manifest.SetEntry("package.version", generated_package_->version().c_str());
 
-  std::string lib_name;
-#if defined(__APPLE__) || defined(__linux__)
-  lib_name = "lib";
-#endif
-  lib_name += output_path_;
-#if defined(__APPLE__)
-  lib_name += ".dylib";
-#elif defined(__linux__)
-  lib_name += ".so";
-#elif defined(WIN32)
-  lib_name += ".dll";
-#endif
+  std::string lib_name = GetLibraryForName(output_path_, "_rfl");
   manifest.SetEntry("package.library", lib_name.c_str());
 
   for (int i = 0; i < generated_package_->GetImportNum(); i++) {
     std::string const &import = generated_package_->GetImportAt(i);
     std::string key = "imports.";
     key+= import;
-    std::string val = import;
-    val += "_rfl";
+    std::string val = GetLibraryForName(import, "_rfl");
     manifest.SetEntry(key.c_str(), val.c_str());
   }
+#if 0
   for (int i = 0; i < generated_package_->GetLibraryNum(); i++) {
     std::string const &lib = generated_package_->GetLibraryAt(i);
     std::string key = "libs.";
@@ -145,6 +152,7 @@ int Gen::EndPackage(Package const *) {
     val += "_rfl";
     manifest.SetEntry(key.c_str(), "");
   }
+#endif
   std::string manifest_file = output_path_;
   manifest_file += ".ini";
   manifest.Save(manifest_file.c_str());

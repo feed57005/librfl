@@ -61,7 +61,24 @@ ObjectClass *ClassRepository::GetClassByName(char const *name) {
   return nullptr;
 }
 
+struct ImportEnumerator {
+  std::vector<std::string> imports_;
+
+  void operator()(std::string const &key, std::string const &) {
+    size_t pos = key.find("imports.",0);
+    if (pos != std::string::npos && pos == 0 && key.size() > 8) {
+      imports_.push_back(key.substr(8));
+    }
+  }
+};
+
 bool ClassRepository::LoadPackage(char const *path, char const *pkgname) {
+  std::string name = pkgname;
+  for (LoadedPackage const &loaded : package_libs_) {
+    if (loaded.package_name_.compare(name) == 0) {
+      return true;
+    }
+  }
   std::string err;
   std::string manifest_path = path;
   manifest_path += "/";
@@ -73,11 +90,19 @@ bool ClassRepository::LoadPackage(char const *path, char const *pkgname) {
     std::cerr << "Unable to load manifest " << manifest_path << std::endl;
     return false;
   }
+  // load package dependencies
+  ImportEnumerator imports_enum;
+  manifest.Enumerate(imports_enum);
+  for (std::string const &import : imports_enum.imports_) {
+    if (!LoadPackage(path, import.c_str()))
+      return false;
+  }
 
+  // load the package library itself
   std::string lib_path = path;
   lib_path += "/";
   lib_path += manifest.GetEntry("package.library");
-  std::cout << "loading library " << lib_path << std::endl;
+  std::cout << "Loading package " << lib_path << std::endl;
   rfl::NativeLibrary lib = rfl::LoadNativeLibrary(lib_path.c_str(), &err);
   if (!lib) {
     std::cerr << err << std::endl;
@@ -92,7 +117,7 @@ bool ClassRepository::LoadPackage(char const *path, char const *pkgname) {
     return false;
   }
   reg_fnc();
-  package_libs_.push_back(lib);
+  package_libs_.push_back(LoadedPackage(pkgname, lib));
   return true;
 }
 

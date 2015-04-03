@@ -52,7 +52,13 @@ public:
 private:
   ClassInstanceMap instance_map_;
   ClassNameMap name_map_;
-  std::vector<rfl::NativeLibrary> package_libs_;
+  struct LoadedPackage {
+    std::string package_name_;
+    rfl::NativeLibrary native_lib_;
+    LoadedPackage(char const *name, rfl::NativeLibrary lib)
+        : package_name_(name), native_lib_(lib) {}
+  };
+  std::vector<LoadedPackage> package_libs_;
 };
 
 class Object {
