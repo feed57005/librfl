@@ -11,9 +11,10 @@
 
 namespace test {
 
-typedef rfl::uint32 ClassId;
 class ObjectClass;
 class Property;
+
+typedef rfl::uint32 TypeId;
 typedef std::map<std::string, Property *> PropertyMap;
 
 struct ClassInstance {
@@ -24,7 +25,7 @@ struct ClassInstance {
         num_instances_(0),
         num_children_(0) {}
 
-  ClassId class_id_;
+  TypeId class_id_;
   ObjectClass *object_class_;
   ClassInstance *parent_class_instance_;
   int num_instances_;
@@ -36,7 +37,30 @@ struct ClassInstance {
 };
 
 typedef std::map<std::string, ClassInstance*> ClassNameMap;
-typedef std::map<ClassId, ClassInstance *> ClassInstanceMap;
+typedef std::map<TypeId, ClassInstance *> ClassInstanceMap;
+
+struct EnumItem {
+	char const *id_;
+	char const *name_;
+	long value_;
+  EnumItem() : id_(nullptr), name_(nullptr), value_(0) {}
+  EnumItem(char const *id, char const *name, long value)
+    : id_(id), name_(name), value_(value) {}
+  EnumItem(EnumItem const &x) : id_(x.id_), name_(x.name_), value_(x.value_) {}
+  EnumItem &operator=(EnumItem const &x) {
+    id_ = x.id_;
+    name_ = x.name_;
+    value_ = x.value_;
+    return *this;
+  }
+};
+
+struct Enum {
+	TypeId enum_id_;
+	char const *enum_name_;
+  std::vector<EnumItem> items_;
+};
+typedef std::map<std::string, Enum*> EnumNameMap;
 
 class ClassRepository {
 public:
@@ -46,12 +70,20 @@ public:
 
   bool RegisterClass(ObjectClass *klass);
   bool UnregisterClass(ObjectClass *klass);
+	bool RegisterEnum(Enum *enm);
+	bool UnregisterEnum(Enum *enm);
+
 
   ObjectClass *GetClassByName(char const *name);
+	Enum *GetEnumByName(char const *name);
 
+private:
+	TypeId GetNextTypeId();
 private:
   ClassInstanceMap instance_map_;
   ClassNameMap name_map_;
+	EnumNameMap enum_name_map_;
+
   struct LoadedPackage {
     std::string package_name_;
     rfl::NativeLibrary native_lib_;
@@ -80,13 +112,13 @@ public:
   Property(char const *name,
            char const *human_name,
            rfl::uint32 offset,
-           ClassId cid,
+           TypeId cid,
            rfl::AnyVar const &default_value);
 
   char const *name() const { return name_; }
   char const *human_name() const { return human_name_; }
   rfl::uint32 offset() const { return offset_; }
-  ClassId class_id() const { return class_id_; }
+  TypeId class_id() const { return class_id_; }
   rfl::AnyVar const &default_value() const { return default_value_; }
 
   template <typename T>
@@ -113,7 +145,7 @@ protected:
   char const *name_;
   char const *human_name_;
   rfl::uint32 offset_;
-  ClassId class_id_;
+  TypeId class_id_;
   rfl::AnyVar default_value_;
 };
 
@@ -123,7 +155,7 @@ public:
   NumericProperty(char const *name,
                   char const *human_name,
                   rfl::uint32 offset,
-                  ClassId cid,
+                  TypeId cid,
                   rfl::AnyVar const &def_value,
                   T min,
                   T max,
@@ -163,18 +195,35 @@ protected:
   int const precision_;
 };
 
+class EnumProperty : public Property {
+public:
+  EnumProperty(Enum *enm,
+               char const *name,
+               char const *human_name,
+               rfl::uint32 offset,
+               long default_value)
+      : Property(name,
+                 human_name,
+                 offset,
+                 enm->enum_id_,
+                 rfl::AnyVar(default_value)), enum_(enm) {}
+
+private:
+  Enum *enum_;
+};
+
 class ObjectClass {
 public:
-  static ClassId ID;
+  static TypeId ID;
 
-  ObjectClass(char const *name, ClassId parent);
+  ObjectClass(char const *name, TypeId parent);
   virtual ~ObjectClass() {}
 
   virtual Object *CreateInstance();
   virtual void ReleaseInstance(Object *instance);
 
-  ClassId class_id() const { return class_instance_->class_id_; }
-  ClassId parent_class_id() const { return parent_class_id_; }
+  TypeId class_id() const { return class_instance_->class_id_; }
+  TypeId parent_class_id() const { return parent_class_id_; }
   char const *class_name() const { return class_name_; }
 
   Property *FindProperty(char const *name) const;
@@ -200,7 +249,7 @@ protected:
 
 private:
   ClassInstance *class_instance_;
-  ClassId parent_class_id_;
+  TypeId parent_class_id_;
   char const *class_name_;
 };
 

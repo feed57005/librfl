@@ -8,6 +8,13 @@ namespace test {
 
 class TestBaseObject;
 
+enum rfl_enum(name = "Test Enum",
+              kTest1 = "Test One",
+              kTest2 = "Test Two") TestEnum {
+  kTest1 = 0,
+  kTest2,
+};
+
 class rfl_class(name="Test Base Object", package="test_annotations") TestBaseObject : public test::Object {
 public:
   TestBaseObject();
@@ -54,6 +61,11 @@ private:
                name="Const Pointer",
                default="nullptr"
                ) int const *cptr_value_;
+
+  rfl_property(id="enumeration",
+               kind="enum",
+               name="Enumeration",
+               default="kTest1") TestEnum test_enum_;
 /*
   rfl_property(id="ref",
                kind="reference",

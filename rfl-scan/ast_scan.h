@@ -50,11 +50,13 @@ private:
   }
   bool _TraverseCXXRecord(CXXRecordDecl *D);
 
+  bool _TraverseEnumDecl(EnumDecl *D);
+
   bool _TraverseFieldDecl(FieldDecl *D);
 
   void AddDecl(NamedDecl *D);
 
-  Namespace *GetOrCreateNamespaceForRecord(CXXRecordDecl *D);
+  Namespace *GetOrCreateNamespaceForRecord(Decl *D);
 
   Package *package() const { return scanner_context_->package(); }
   std::string const &basedir() const { return scanner_context_->basedir(); }

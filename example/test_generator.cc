@@ -34,6 +34,7 @@ protected:
   std::vector<std::string> src_includes_;
   std::vector<std::string> h_includes_;
   std::vector<std::pair<std::string, std::string> > classes_;
+  std::vector<Enum *> enums_;
 };
 
 void Gen::AddInclude(std::string const &inc, std::vector<std::string> &includes) {
@@ -96,11 +97,23 @@ std::string GetLibraryForName(std::string const &name, char const *suffix) {
   return lib_name;
 }
 
-int Gen::EndPackage(Package const *) {
+int Gen::EndPackage(Package const *pkg) {
   hout_ << "#endif // __" << package_upper_ << "_RFL_H__\n";
 
   out_ << "extern \"C\" bool LoadPackage() {\n"
        << "  test::ClassRepository *repo = test::ClassRepository::GetSharedInstance();\n\n";
+  for (Enum *e : enums_) {
+    out_ << "  {\n"
+         << "    test::Enum *" << e->name() << "_enum = new test::Enum();\n";
+    for (size_t j = 0; j < e->GetNumEnumItems(); ++j) {
+      Enum::EnumItem const &item = e->GetEnumItemAt(j);
+      out_ << "    " << e->name() << "_enum->items_.push_back(test::EnumItem(\""
+           << item.id_ << "\",\"" << item.name_ << "\", " << item.value_
+           << "));\n";
+    }
+    out_ << "    repo->RegisterEnum(" << e->name() << "_enum);\n";
+    out_ << "  }\n";
+  }
   for (std::pair<std::string, std::string> const &klass : classes_) {
     out_ << "  repo->RegisterClass(new " << klass.first << "());\n";
   }
@@ -167,6 +180,10 @@ int Gen::BeginNamespace(Namespace const *ns) {
 
   hout_ << "namespace " << ns->name() << " {\n\n";
 
+  for (size_t i = 0; i < ns->GetNumEnums(); ++i) {
+    enums_.push_back(ns->GetEnumAt(i));
+  }
+
   return 0;
 }
 
@@ -225,7 +242,7 @@ int Gen::EndClass(Class const *clazz) {
   }
   hout_ << " {\n"
         << "public:\n"
-        << "  static ClassId ID;\n\n"
+        << "  static TypeId ID;\n\n"
         << "  " << class_name << "();\n"
         << "  virtual ~" << class_name << "() {}\n\n"
 
@@ -233,17 +250,17 @@ int Gen::EndClass(Class const *clazz) {
         << "  virtual void ReleaseInstance(test::Object *obj);\n\n"
 
         << "protected:\n"
-        << "  explicit " << class_name << "(char const *name, ClassId parent_id);\n"
+        << "  explicit " << class_name << "(char const *name, TypeId parent_id);\n"
         << "  virtual bool InitClassProperties(ClassInstance *instance);\n"
         << "};\n\n";
 
-  out_ << "ClassId " << class_name << "::ID = -1;\n\n";
+  out_ << "TypeId " << class_name << "::ID = -1;\n\n";
 
   out_ << class_name << "::" << class_name << "() : "
           << parent_class_name << "(\"" << clazz->name() << "\", "
                                << parent_class_name << "::ID) {}\n\n";
   out_ << class_name << "::" << class_name
-       << "(char const *name, ClassId parent_id) : " << parent_class_name
+       << "(char const *name, TypeId parent_id) : " << parent_class_name
        << "(name, parent_id) {}\n\n";
   out_ << "test::Object *" << class_name << "::CreateInstance() {\n"
        << "  return new " << clazz->name() << "();\n"
@@ -278,6 +295,14 @@ int Gen::EndClass(Class const *clazz) {
            << page_step << ", "
            << page_size << ", "
            << precision
+           << "));\n";
+    } else if (kind.compare("enum") == 0) {
+      out_ << "  Enum *enum_" << id << "\n"
+           << "   = test::ClassRepository::GetSharedInstance()->GetEnumByName(\""
+           << prop->type() << "\");\n";
+      out_ << "  instance->AddProperty(new test::EnumProperty(enum_" << id
+           << ", \"" << id << "\", \"" << name << "\", " << prop->offset()
+           << ", " << prop->type() << "::" << anno.GetEntry("default")
            << "));\n";
     } else {
       char const *default_value = anno.GetEntry("default");

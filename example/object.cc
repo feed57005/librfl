@@ -25,8 +25,12 @@ ClassRepository *ClassRepository::GetSharedInstance() {
   return instance;
 }
 
+TypeId ClassRepository::GetNextTypeId(){
+  static TypeId last_type_id = 0;
+	return ++last_type_id;
+}
+
 bool ClassRepository::RegisterClass(ObjectClass *klass) {
-  static ClassId last_type_id = 0;
   ClassInstance *parent = nullptr;
   ClassInstanceMap::const_iterator it =
       instance_map_.find(klass->parent_class_id());
@@ -34,7 +38,7 @@ bool ClassRepository::RegisterClass(ObjectClass *klass) {
     parent = it->second;
   }
   ClassInstance *instance = new ClassInstance();
-  instance->class_id_ = ++last_type_id;
+  instance->class_id_ = GetNextTypeId();
   instance->object_class_ = klass;
   instance->parent_class_instance_ = parent;
 
@@ -52,6 +56,24 @@ bool ClassRepository::RegisterClass(ObjectClass *klass) {
 bool ClassRepository::UnregisterClass(ObjectClass *klass) {
   // TODO
   return true;
+}
+
+bool ClassRepository::RegisterEnum(Enum *enm) {
+  enm->enum_id_ = GetNextTypeId();
+  enum_name_map_.insert(std::make_pair(std::string(enm->enum_name_), enm));
+  return true;
+}
+
+bool ClassRepository::UnregisterEnum(Enum *enm) {
+  // TODO
+	return true;
+}
+
+Enum *ClassRepository::GetEnumByName(char const *name) {
+  EnumNameMap::const_iterator it = enum_name_map_.find(std::string(name));
+  if (it != enum_name_map_.end())
+    return it->second;
+  return nullptr;
 }
 
 ObjectClass *ClassRepository::GetClassByName(char const *name) {
@@ -130,9 +152,9 @@ bool Object::AttachClass(ObjectClass *klass) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-ClassId ObjectClass::ID = 0;
+TypeId ObjectClass::ID = 0;
 
-ObjectClass::ObjectClass(char const *name, ClassId parent)
+ObjectClass::ObjectClass(char const *name, TypeId parent)
     : class_instance_(nullptr),
       parent_class_id_(parent),
       class_name_(name) {
@@ -177,7 +199,7 @@ Property *ObjectClass::FindProperty(char const *name) const {
 Property::Property(char const *name,
                    char const *human_name,
                    rfl::uint32 offset,
-                   ClassId cid,
+                   TypeId cid,
                    rfl::AnyVar const &default_value)
     : name_(name), human_name_(human_name), offset_(offset), class_id_(cid), default_value_(default_value) {
 }

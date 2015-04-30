@@ -62,7 +62,13 @@ bool ASTScanner::TraverseDecl(Decl *D) {
     case (Decl::Function):
       if (isa<FunctionDecl>(D) && !cast<FunctionDecl>(D)->isFirstDecl())
         return base::TraverseDecl(D);
+			break;
     case (Decl::Enum):
+      if (isa<EnumDecl>(D) &&
+          cast<EnumDecl>(D)->isThisDeclarationADefinition() !=
+              VarDecl::DeclarationOnly)
+        return _TraverseEnumDecl(cast<EnumDecl>(D));
+			break;
     case (Decl::ClassTemplate):
     case (Decl::ParmVar):
       AddDecl(named_decl);
@@ -155,7 +161,7 @@ bool ASTScanner::ReadAnnotation(NamedDecl *D, Annotation *anno) {
   return true;
 }
 
-Namespace *ASTScanner::GetOrCreateNamespaceForRecord(CXXRecordDecl *D) {
+Namespace *ASTScanner::GetOrCreateNamespaceForRecord(Decl *D) {
   DeclContext const *ctx = D->getDeclContext();
 
   typedef SmallVector<const DeclContext *, 8> ContextsTy;
@@ -197,7 +203,15 @@ Namespace *ASTScanner::GetOrCreateNamespaceForRecord(CXXRecordDecl *D) {
 
 bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
   std::string qual_name = D->getQualifiedNameAsString();
+
   std::string name = D->getDeclName().getAsString();
+
+  //llvm::raw_string_ostream OS(name);
+  //  PrintingPolicy policy(context_->getLangOpts());
+  //  policy.SuppressTagKeyword = true;
+  //  policy.SuppressScope = true;
+  //D->printQualifiedName(OS, policy);
+  //name = OS.str();
 
   //out_ << "### " << qual_name.c_str() << "\n  " << *D << "\n";
 
@@ -215,15 +229,12 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
           CXXRecordDecl *decl = type->getAsCXXRecordDecl();
           if (decl) {
             Namespace *base_ns = GetOrCreateNamespaceForRecord(decl);
-            std::string Result;
-            llvm::raw_string_ostream OS(Result);
+            std::string result;
+            llvm::raw_string_ostream OS(result);
             OS << *decl;
             super = base_ns->FindClass(OS.str().c_str());
-            if (!super) {
-              errs() << "Unable to find base class \n";
-            }
           } else {
-            errs() << "Unable to find base class \n";
+						errs() << "Unable to find base class " << qual_name << " among bases\n";
             //return true;
           }
         }
@@ -250,8 +261,13 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
 bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
   Annotation anno;
   if (ReadAnnotation(D, &anno)) {
-    std::string type_name = D->getType().getAsString();
-    std::string qual_name = D->getQualifiedNameAsString();
+    std::string type_name = D->getType().getLocalUnqualifiedType().getAsString();
+    PrintingPolicy policy(context_->getLangOpts());
+    policy.SuppressTagKeyword = true;
+    policy.SuppressScope = true;
+    //type_name = D->getName().str();
+    //std::string qual_name = D->getQualifiedNameAsString();
+    type_name = D->getType().getAsString(policy);
     std::string name = D->getDeclName().getAsString();
     Class *klass = CurrentClass();
     if (!klass) {
@@ -263,6 +279,45 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
     //uint64 size = context_->getASTRecordLayout(D).getSize().getQuantity();
     //out_ << klass->name().c_str() << " prop: " << name.c_str() << "\n";
     klass->AddProperty(new Property(name, type_name, offset, anno));
+  }
+  return true;
+}
+
+bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
+  Annotation anno;
+
+  std::string name = D->getQualifiedNameAsString();
+  name = D->getName().str();
+  if (!ReadAnnotation(D, &anno)) {
+    //outs() << "no enum annotation '" << name << "'\n";
+    return true;
+  }
+  outs() << "Processing enum '"<< name << "'\n";
+  SourceManager const &src_manager = context_->getSourceManager();
+  SourceLocation source_loc = D->getSourceRange().getBegin();
+  PresumedLoc presumed_loc = src_manager.getPresumedLoc(source_loc, false);
+  std::string header_file = StripBasedir(presumed_loc.getFilename(), basedir());
+  Class *parent = CurrentClass();
+  Namespace *ns = nullptr;
+  if (parent == nullptr) {
+    ns = GetOrCreateNamespaceForRecord(D);
+  }
+  Enum *e = new Enum(name, header_file, anno, ns, parent);
+  for (EnumDecl::enumerator_iterator it = D->enumerator_begin();
+       it != D->enumerator_end(); ++it) {
+    EnumConstantDecl *e_item = *it;
+    Enum::EnumItem item;
+    item.id_ = e_item->getNameAsString();
+    llvm::APSInt const &value = e_item->getInitVal();
+    item.value_ = (long) value.getSExtValue();
+    item.name_ = anno.GetEntry(item.id_);
+		//outs() << " " << item.id_ << " = " << item.value_ << " # " << anno.GetEntry(item.id_)<<"\n";
+    e->AddEnumItem(item);
+  }
+  if (!parent) {
+    ns->AddEnum(e);
+  } else {
+    parent->AddEnum(e);
   }
   return true;
 }

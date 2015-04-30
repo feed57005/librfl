@@ -81,7 +81,54 @@ Property &Property::operator=(Property const &x) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+Enum::Enum(std::string const &name,
+           std::string const &header_file,
+           Annotation const &anno,
+           Namespace *ns,
+           Class *parent)
+    : Reflected(name, anno),
+      namespace_(ns),
+      parent_class_(parent),
+      header_file_(header_file) {
+}
+Enum::Enum(Enum const &x)
+    : Reflected(x),
+      namespace_(x.namespace_),
+      parent_class_(x.parent_class_),
+      items_(x.items_),
+      header_file_(x.header_file_) {
+}
+Enum &Enum::operator=(Enum const &x) {
+  Reflected::operator=(x);
+  namespace_ = x.namespace_;
+  parent_class_ = x.parent_class_;
+  items_ = x.items_;
+  header_file_ = x.header_file_;
+  return *this;
+}
 
+void Enum::AddEnumItem(EnumItem const &item) {
+  items_.push_back(item);
+}
+
+void Enum::RemoveEnumItem(EnumItem const &item) {
+  for (std::vector<EnumItem>::iterator it = items_.begin(); it != items_.end(); ++it) {
+    if (it->value_ == item.value_) {
+      items_.erase(it);
+      return;
+    }
+  }
+}
+
+Enum::EnumItem const &Enum::GetEnumItemAt(size_t idx) const {
+  return items_[idx];
+}
+
+size_t Enum::GetNumEnumItems() const {
+  return items_.size();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 Class::Class(std::string const &name,
              std::string const &header_file,
              Annotation const &anno,
@@ -189,6 +236,34 @@ Class *Class::GetClassAt(size_t idx) const {
   return classes_[idx];
 }
 
+void Class::AddEnum(Enum *e) {
+  enums_.push_back(e);
+}
+
+void Class::RemoveEnum(Enum *e) {
+  Enums::iterator it = std::find(enums_.begin(), enums_.end(), e);
+  if (it != enums_.end())
+    enums_.erase(it);
+}
+
+Enum *Class::FindEnum(char const *enum_name) const {
+  std::string const &name(enum_name);
+  for (Enum *e : enums_) {
+    if (e->name().compare(name) == 0)
+      return e;
+  }
+  return nullptr;
+}
+
+size_t Class::GetNumEnums() const {
+  return enums_.size();
+}
+
+Enum *Class::GetEnumAt(size_t idx) const {
+  return enums_[idx];
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
 Namespace::Namespace(std::string const &name,
@@ -269,6 +344,32 @@ Namespace *Namespace::GetNamespaceAt(size_t idx) const {
   return namespaces_[idx];
 }
 
+void Namespace::AddEnum(Enum *e) {
+  enums_.push_back(e);
+}
+
+void Namespace::RemoveEnum(Enum *e) {
+  Enums::iterator it = std::find(enums_.begin(), enums_.end(), e);
+  if (it != enums_.end())
+    enums_.erase(it);
+}
+
+Enum *Namespace::FindEnum(char const *enum_name) const {
+  std::string const &name(enum_name);
+  for (Enum *e : enums_) {
+    if (e->name().compare(name) == 0)
+      return e;
+  }
+  return nullptr;
+}
+
+size_t Namespace::GetNumEnums() const {
+  return enums_.size();
+}
+
+Enum *Namespace::GetEnumAt(size_t idx) const {
+  return enums_[idx];
+}
 ////////////////////////////////////////////////////////////////////////////////
 
 Package::Package(std::string const &name,
