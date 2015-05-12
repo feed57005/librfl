@@ -104,7 +104,8 @@ int Gen::EndPackage(Package const *pkg) {
        << "  test::ClassRepository *repo = test::ClassRepository::GetSharedInstance();\n\n";
   for (Enum *e : enums_) {
     out_ << "  {\n"
-         << "    test::Enum *" << e->name() << "_enum = new test::Enum();\n";
+         << "    test::Enum *" << e->name() << "_enum = new test::Enum();\n"
+         << "    " << e->name() << "_enum->enum_name_ = \"" << e->name() << "\";\n";
     for (size_t j = 0; j < e->GetNumEnumItems(); ++j) {
       Enum::EnumItem const &item = e->GetEnumItemAt(j);
       out_ << "    " << e->name() << "_enum->items_.push_back(test::EnumItem(\""

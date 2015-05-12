@@ -232,6 +232,7 @@ inline TypeInfo TypeInfoOf(T const &) {
 RFL_NAME_TYPE_0(RFL_EXPORT, "int", int)
 RFL_NAME_TYPE_0(RFL_EXPORT, "float", float)
 RFL_NAME_TYPE_0(RFL_EXPORT, "double", double)
+RFL_NAME_TYPE_0(RFL_EXPORT, "long", long)
 RFL_NAME_TYPE_0(RFL_EXPORT, "string", std::string)
 RFL_NAME_TYPE_0(RFL_EXPORT, "empty", EmptyType)
 

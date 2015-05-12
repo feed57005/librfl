@@ -123,6 +123,46 @@ private:
   std::string header_file_;
 };
 
+class RFL_EXPORT Argument : public Reflected {
+public:
+  enum Kind {
+    kReturn_Kind,
+    kInput_Kind,
+    kOutput_Kind,
+    kInOut_Kind
+  };
+
+  Kind kind() const { return kind_; }
+  std::string const &type() const { return type_; }
+  uint32 offset() const { return offset_; }
+
+private:
+  Kind kind_;
+  uint32 offset_;
+  std::string type_;
+};
+
+class RFL_EXPORT Method : public Reflected {
+public:
+  Method() {}
+  Method(std::string const &name, Annotation const &anno)
+    : Reflected(name, anno) {}
+
+  Class *parent_class() const { return class_; }
+
+  void AddArgument(Argument *arg);
+  void RemoveArgument(Argument *arg);
+
+  Argument *GetArgumentAt(size_t idx) const;
+  size_t GetNumArguments() const;
+
+private:
+  friend class Class;
+  void set_parent_class(Class *klass) { class_ = klass; }
+  Class *class_;
+  std::vector<Argument *> arguments_;
+};
+
 #if 0
 class RFL_EXPORT EnumContainer {
 public:

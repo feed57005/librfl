@@ -7,6 +7,8 @@ std::ostream &operator<<(std::ostream &out, rfl::AnyVar const &value) {
     out << value.Cast<int>();
   } else if (type == rfl::TypeInfoOf<float>()) {
     out << value.Cast<float>();
+  } else if (type == rfl::TypeInfoOf<long>()) {
+    out << value.Cast<long>();
   } else if (type == rfl::TypeInfoOf<std::string>()) {
     out << value.Cast<std::string>();
   } else {
