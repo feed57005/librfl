@@ -37,9 +37,7 @@ flags = [
 #
 script_dir = os.path.dirname(os.path.realpath(__file__))
 os_platform = platform.system().lower()
-compilation_database_folder = os.path.join(script_dir,'_build', 'ninja-debug-osx')
-
-print(compilation_database_folder)
+compilation_database_folder = os.path.join(script_dir, 'ninja-debug-' + os_platform)
 
 if os.path.exists( compilation_database_folder ):
   database = ycm_core.CompilationDatabase( compilation_database_folder )

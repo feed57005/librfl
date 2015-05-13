@@ -62,3 +62,5 @@ set (rfl-scan_LIBS
   ${LLVM_LIBRARIES}
   )
 add_module (rfl-scan)
+
+install (TARGETS rfl-scan RUNTIME DESTINATION bin)

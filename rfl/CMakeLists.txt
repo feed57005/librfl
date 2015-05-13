@@ -1,20 +1,21 @@
 set (rfl_TARGET_TYPE SHARED)
-set (rfl_SOURCES
+set (rfl_PUBLIC_HEADERS
   annotations.h
-  dictionary.cc
   dictionary.h
-  generator.cc
   generator.h
-  native_library.cc
   native_library.h
-  reflected.cc
   reflected.h
-  reflected_io.cc
-  reflected_io.h
-  repository.cc
   repository.h
   rfl_export.h
   types.h
+	)
+set (rfl_SOURCES
+	${rfl_PUBLIC_HEADERS}
+  dictionary.cc
+  generator.cc
+  native_library.cc
+  reflected.cc
+  repository.cc
   )
 
 if (OS_LINUX)
@@ -23,4 +24,8 @@ endif ()
 
 add_module (rfl)
 
-add_subdirectory (test)
+if (BUILD_TESTS)
+	add_subdirectory (test)
+endif ()
+install (FILES ${rfl_PUBLIC_HEADERS} DESTINATION include)
+install (TARGETS rfl LIBRARY DESTINATION lib)
