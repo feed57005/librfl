@@ -15,6 +15,19 @@ Property *ClassInstance::GetProperty(char const *name) const {
   return nullptr;
 }
 
+void ClassInstance::AddMethod(Method *method) {
+  methods_.insert(std::make_pair(method->name(), method));
+}
+
+Method *ClassInstance::GetMethod(char const *name) const {
+  MethodMap::const_iterator it = methods_.find(std::string(name));
+  if (it != methods_.end()) {
+    return it->second;
+  }
+  return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 // static
 ClassRepository *ClassRepository::GetSharedInstance() {
@@ -192,6 +205,26 @@ Property *ObjectClass::FindProperty(char const *name) const {
     inst = inst->parent_class_instance_;
   }
   return nullptr;
+}
+
+Method *ObjectClass::FindMethod(char const *name) const {
+  ClassInstance *inst = class_instance_;
+  while (inst) {
+    Method *method = inst->GetMethod(name);
+    if (method)
+      return method;
+    inst = inst->parent_class_instance_;
+  }
+  return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+Method::Method(char const *name,
+               char const *human_name,
+               TypeId cid,
+               CallDesc *desc)
+    : name_(name), human_name_(human_name), class_id_(cid), call_desc_(desc) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////

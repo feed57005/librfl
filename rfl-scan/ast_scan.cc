@@ -56,9 +56,13 @@ bool ASTScanner::TraverseDecl(Decl *D) {
         return base::TraverseDecl(D);
       return _TraverseFieldDecl(cast<FieldDecl>(D));
 
+    case (Decl::CXXMethod):
+      if (isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isFirstDecl())
+        return _TraverseMethodDecl(cast<CXXMethodDecl>(D));
+      return base::TraverseDecl(D);
+
     case (Decl::CXXConstructor):
     case (Decl::CXXDestructor):
-    case (Decl::CXXMethod):
     case (Decl::Function):
       if (isa<FunctionDecl>(D) && !cast<FunctionDecl>(D)->isFirstDecl())
         return base::TraverseDecl(D);
@@ -319,6 +323,64 @@ bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
   } else {
     parent->AddEnum(e);
   }
+  return true;
+}
+
+bool ASTScanner::_TraverseMethodDecl(CXXMethodDecl *D) {
+	// Ignore overloaded operators for now
+	if (D->isOverloadedOperator() || class_queue_.empty())
+		return true;
+  Annotation anno;
+  if (!ReadAnnotation(D, &anno))
+    return true;
+  std::string name = D->getDeclName().getAsString();
+  outs() << " method: "<< name << " ";
+    PrintingPolicy policy(context_->getLangOpts());
+    policy.SuppressTagKeyword = true;
+    policy.SuppressScope = true;
+  std::string ret_type = D->getReturnType().getLocalUnqualifiedType().getAsString();
+  outs() << ret_type << " ";
+
+  Class *klass = class_queue_.front();
+  Method *method = new Method(name, anno);
+  klass->AddMethod(method);
+  method->AddArgument(
+      new Argument("return", Argument::kReturn_Kind, ret_type, Annotation()));
+
+  for (CXXMethodDecl::param_iterator it = D->param_begin();
+       it != D->param_end();
+       ++it) {
+    ParmVarDecl *param = *it;
+    Annotation param_anno;
+    if (!ReadAnnotation(param, &param_anno)) {
+      errs() << "parameter not annotated\n";
+      continue;
+    }
+		llvm::StringRef param_name = param->getName().str();
+		if (param_name.empty()) {
+      errs() << "Unnamed parameter\n";
+      continue;
+    }
+    std::string param_type = param->getType().getLocalUnqualifiedType().getAsString();
+    outs() << param_type << " " << param_name << ", ";
+    std::string kind_anno = param_anno.GetEntry("kind");
+    Argument::Kind kind;
+    if (kind_anno.compare("in") == 0) {
+      kind = Argument::kInput_Kind;
+    } else if (kind_anno.compare("out") == 0) {
+      kind = Argument::kOutput_Kind;
+    } else if (kind_anno.compare("inout") == 0) {
+      kind = Argument::kInOut_Kind;
+    } else {
+      errs() << "Unknown argument kind '" << kind_anno << "'\n";
+      continue;
+    }
+
+    Argument *arg = new Argument(param_name, kind, param_type, param_anno);
+    method->AddArgument(arg);
+  }
+  outs() << "\n";
+
   return true;
 }
 

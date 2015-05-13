@@ -20,7 +20,6 @@ namespace rfl {
 class Namespace;
 typedef std::vector<Namespace *> Namespaces;
 
-
 class Enum;
 typedef std::vector<Enum *> Enums;
 
@@ -29,6 +28,13 @@ typedef std::vector<Class *> Classes;
 
 class Property;
 typedef std::vector<Property *> Properties;
+
+class Argument;
+typedef std::vector<Argument *> Arguments;
+
+class Method;
+typedef std::vector<Method *> Methods;
+
 class Package;
 
 class RFL_EXPORT Annotation {
@@ -54,8 +60,6 @@ public:
   Reflected() {}
   Reflected(std::string const &name);
   Reflected(std::string const &name, Annotation const &anno);
-  Reflected(Reflected const &x);
-  Reflected &operator=(Reflected const &x);
 
   std::string const &name() const { return name_; }
   Annotation const &annotation() const { return annotation_; }
@@ -131,14 +135,18 @@ public:
     kOutput_Kind,
     kInOut_Kind
   };
+  Argument() {}
+  Argument(std::string name,
+           Kind kind,
+           std::string const &type,
+           Annotation const &anno)
+      : Reflected(name, anno), kind_(kind), type_(type) {}
 
   Kind kind() const { return kind_; }
   std::string const &type() const { return type_; }
-  uint32 offset() const { return offset_; }
 
 private:
   Kind kind_;
-  uint32 offset_;
   std::string type_;
 };
 
@@ -160,12 +168,12 @@ private:
   friend class Class;
   void set_parent_class(Class *klass) { class_ = klass; }
   Class *class_;
-  std::vector<Argument *> arguments_;
+  Arguments arguments_;
 };
 
-#if 0
 class RFL_EXPORT EnumContainer {
 public:
+  EnumContainer() {}
   void AddEnum(Enum *e);
   void RemoveEnum(Enum *e);
   Enum *FindEnum(char const *enum_name) const;
@@ -174,9 +182,8 @@ public:
 private:
   Enums enums_;
 };
-#endif
 
-class RFL_EXPORT Class : public Reflected {
+class RFL_EXPORT Class : public Reflected, public EnumContainer {
 public:
   Class() {}
 
@@ -186,10 +193,6 @@ public:
         Property **props = nullptr,
         Class **nested = nullptr,
         Class *super = nullptr);
-
-  Class(Class const &x);
-
-  Class &operator=(Class const &x);
 
   Namespace *class_namespace() const { return namespace_; }
   Class *parent_class() const { return parent_; }
@@ -201,17 +204,17 @@ public:
   Property *GetPropertyAt(size_t idx) const;
   Property *FindProperty(char const *name) const;
 
+  void AddMethod(Method *method);
+  void RemoveMethod(Method *method);
+  size_t GetNumMethods() const;
+  Method *GetMethodAt(size_t idx) const;
+  Method *FindMethod(char const *name) const;
+
   void AddClass(Class *klass);
   void RemoveClass(Class *klass);
   Class *FindClass(char const *class_name) const;
   size_t GetNumClasses() const;
   Class *GetClassAt(size_t idx) const;
-
-  void AddEnum(Enum *e);
-  void RemoveEnum(Enum *e);
-  Enum *FindEnum(char const *enum_name) const;
-  size_t GetNumEnums() const;
-  Enum *GetEnumAt(size_t idx) const;
 
   std::string const &header_file() const { return header_file_; }
 
@@ -228,11 +231,11 @@ private:
   Class *super_;
   Properties properties_;
   Classes classes_;
-  Enums enums_;
+  Methods methods_;
   std::string header_file_;
 };
 
-class RFL_EXPORT Namespace : public Reflected {
+class RFL_EXPORT Namespace : public Reflected, public EnumContainer {
 public:
   Namespace(std::string const &name,
             Class **classes = nullptr,
@@ -250,18 +253,12 @@ public:
   size_t GetNumNamespaces() const;
   Namespace *GetNamespaceAt(size_t idx) const;
 
-  void AddEnum(Enum *e);
-  void RemoveEnum(Enum *e);
-  Enum *FindEnum(char const *enum_name) const;
-  size_t GetNumEnums() const;
-  Enum *GetEnumAt(size_t idx) const;
-
   Namespace *parent_namespace() const { return parent_namespace_; }
+
 private:
   void set_parent_namespace(Namespace *ns) { parent_namespace_ = ns; }
   Namespace *parent_namespace_;
   Classes classes_;
-  Enums enums_;
   Namespaces namespaces_;
 };
 

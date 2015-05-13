@@ -257,12 +257,16 @@ int Gen::EndClass(Class const *clazz) {
 
   out_ << "TypeId " << class_name << "::ID = -1;\n\n";
 
+  // Default Constructor
   out_ << class_name << "::" << class_name << "() : "
           << parent_class_name << "(\"" << clazz->name() << "\", "
                                << parent_class_name << "::ID) {}\n\n";
+  // Inherit Constructor
   out_ << class_name << "::" << class_name
        << "(char const *name, TypeId parent_id) : " << parent_class_name
        << "(name, parent_id) {}\n\n";
+
+  // CreateInstance impl.
   out_ << "test::Object *" << class_name << "::CreateInstance() {\n"
        << "  return new " << clazz->name() << "();\n"
        << "}\n\n"
@@ -271,8 +275,12 @@ int Gen::EndClass(Class const *clazz) {
        << "  delete obj;\n"
        << "}\n\n";
 
+  // InitClassProperties impl.
   out_ << "bool " << class_name << "::InitClassProperties(ClassInstance *instance) {\n"
        << "  " << class_name << "::ID = instance->class_id_;\n";
+  if (clazz->GetNumProperties() > 0) {
+    out_ << "\n  // Properties\n\n";
+  }
   for (size_t i = 0; i < clazz->GetNumProperties(); i++) {
     Property *prop = clazz->GetPropertyAt(i);
     Annotation const &anno = prop->annotation();
@@ -298,8 +306,8 @@ int Gen::EndClass(Class const *clazz) {
            << precision
            << "));\n";
     } else if (kind.compare("enum") == 0) {
-      out_ << "  Enum *enum_" << id << "\n"
-           << "   = test::ClassRepository::GetSharedInstance()->GetEnumByName(\""
+      out_ << "  Enum *enum_" << id << " =\n"
+           << "    test::ClassRepository::GetSharedInstance()->GetEnumByName(\""
            << prop->type() << "\");\n";
       out_ << "  instance->AddProperty(new test::EnumProperty(enum_" << id
            << ", \"" << id << "\", \"" << name << "\", " << prop->offset()
@@ -312,6 +320,43 @@ int Gen::EndClass(Class const *clazz) {
            << "rfl::AnyVar((" << prop->type() << ")(" << default_value << "))"
            << "));\n";
     }
+  }
+
+  if (clazz->GetNumMethods() > 0) {
+    AddInclude("call_desc.h", src_includes_);
+    out_ << "\n  // Methods\n\n";
+  }
+  for (size_t i = 0; i < clazz->GetNumMethods(); ++i) {
+    Method *m = clazz->GetMethodAt(i);
+    Argument *ret_arg = m->GetArgumentAt(0);
+    out_ << "  static test::GenericCallDesc<" << clazz->name() << ", "
+         << ret_arg->type() << "(" << clazz->name() << "::*)(";
+    std::string signature = "x";
+    for (size_t j = 1; j < m->GetNumArguments(); ++j) {
+      Argument *arg = m->GetArgumentAt(j);
+      switch(arg->kind()) {
+        case Argument::kInput_Kind:
+          signature += "i";
+          break;
+        case Argument::kOutput_Kind:
+          signature+= "o";
+          break;
+        case Argument::kInOut_Kind:
+          signature+= "a";
+          break;
+        case Argument::kReturn_Kind:
+          signature+= "x";
+          break;
+      }
+      out_ << arg->type() << (j < m->GetNumArguments() - 1 ? ", " : "");
+    }
+    out_ << ")> call_desc_" << m->name() << "(&" << clazz->name()
+         << "::" << m->name() << ", \"" << signature << "\");\n";
+    std::string const &human_name = m->annotation().GetEntry("name");
+    out_ << "  test::Method *method_" << m->name() << " = new test::Method(\""
+         << m->name() << "\", \"" << human_name << "\", class_id(), &call_desc_"
+         << m->name() << ");\n";
+    out_ << "  instance->AddMethod(method_" << m->name() << ");\n";
   }
   out_ << "  return true;\n"
        << "}\n\n";

@@ -6,11 +6,15 @@
 #define rfl_enum(...) __attribute__((annotate("enum:{" #__VA_ARGS__"}")))
 #define rfl_property(...) __attribute__((annotate("property:{" #__VA_ARGS__  "}")))
 #define rfl_field(...) __attribute__((annotate("field:{" #__VA_ARGS__  "}")))
+#define rfl_method(...) __attribute__((annotate("method:{" #__VA_ARGS__  "}")))
+#define rfl_arg(...) __attribute__((annotate("arg:{" #__VA_ARGS__  "}")))
 #else
 #define rfl_class(...)
 #define rfl_enum(...)
 #define rfl_property(...)
 #define rfl_field(...)
+#define rfl_method(...)
+#define rfl_arg(...)
 #endif
 
 

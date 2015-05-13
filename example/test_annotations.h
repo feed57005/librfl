@@ -26,7 +26,8 @@ public:
   float float_value() const { return float_value_; }
   void set_float_value(float v) { float_value_ = v; }
 
-  void DoSomething(int a);
+  rfl_method(name="Do Something")
+  void DoSomething(rfl_arg(name="A", kind="in") int a);
 
 private:
   rfl_property(id = "int_value",

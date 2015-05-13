@@ -5,6 +5,8 @@
 #include "rfl/any_var.h"
 #include "rfl/native_library.h"
 
+#include "call_desc.h"
+
 #include <string>
 #include <vector>
 #include <map>
@@ -13,9 +15,11 @@ namespace test {
 
 class ObjectClass;
 class Property;
+class Method;
 
 typedef rfl::uint32 TypeId;
 typedef std::map<std::string, Property *> PropertyMap;
+typedef std::map<std::string, Method *> MethodMap;
 
 struct ClassInstance {
   ClassInstance()
@@ -31,9 +35,13 @@ struct ClassInstance {
   int num_instances_;
   int num_children_;
   PropertyMap properties_;
+  MethodMap methods_;
 
   void AddProperty(Property *prop);
   Property *GetProperty(char const *name) const;
+
+  void AddMethod(Method *method);
+  Method *GetMethod(char const *name) const;
 };
 
 typedef std::map<std::string, ClassInstance*> ClassNameMap;
@@ -149,6 +157,22 @@ protected:
   rfl::AnyVar default_value_;
 };
 
+class Method {
+public:
+  Method(char const *name, char const *human_name, TypeId cid, CallDesc *desc);
+
+  char const *name() const { return name_; }
+  char const *human_name() const { return human_name_; }
+  TypeId class_id() const { return class_id_; }
+  CallDesc *call_description() const { return call_desc_; }
+
+protected:
+  char const *name_;
+  char const *human_name_;
+  TypeId class_id_;
+  CallDesc *call_desc_;
+};
+
 template <typename T>
 class NumericProperty : public Property {
 public:
@@ -228,8 +252,10 @@ public:
 
   Property *FindProperty(char const *name) const;
 
+  Method *FindMethod(char const *name) const;
+
   template <class T>
-  void EnumerateProperties(T const &enumerator) {
+  void EnumerateProperties(T const &enumerator) const {
     ClassInstance *inst = class_instance_;
     while (inst) {
       for (std::pair<std::string, Property *> const &prop_pair :
@@ -240,11 +266,23 @@ public:
     }
   }
 
+  template <class T>
+  void EnumerateMethods(T const &enumerator) const {
+    ClassInstance *inst = class_instance_;
+    while (inst) {
+      for (std::pair<std::string, Method *> const &method_pair :
+           inst->methods_) {
+        enumerator(method_pair.second);
+      }
+      inst = inst->parent_class_instance_;
+    }
+  }
 protected:
   virtual bool InitInstance(Object *instance);
 
   friend class ClassRepository;
   virtual bool InitClassInstance(ClassInstance *instance);
+  // XXX rename InitClassXXX
   virtual bool InitClassProperties(ClassInstance *instance);
 
 private:

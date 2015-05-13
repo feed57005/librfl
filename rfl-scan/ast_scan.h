@@ -54,6 +54,8 @@ private:
 
   bool _TraverseFieldDecl(FieldDecl *D);
 
+  bool _TraverseMethodDecl(CXXMethodDecl *D);
+
   void AddDecl(NamedDecl *D);
 
   Namespace *GetOrCreateNamespaceForRecord(Decl *D);

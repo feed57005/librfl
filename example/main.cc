@@ -42,6 +42,13 @@ struct PropEnum {
   test::Object *instance_;
 };
 
+struct MethodEnum {
+  MethodEnum(test::Object *instance) : instance_(instance) {}
+  void operator()(test::Method *method) const {
+    std::cout << method->name() << " - " << method->human_name() << std::endl;
+  }
+  test::Object *instance_;
+};
 int main(int argc, char **argv) {
   using namespace test;
   if (argc < 4) {
@@ -71,6 +78,7 @@ int main(int argc, char **argv) {
             << " parent ID: " << klass->parent_class_id() << std::endl;
 
   klass->EnumerateProperties(PropEnum(obj));
+  klass->EnumerateMethods(MethodEnum(obj));
 
   return 0;
 }
