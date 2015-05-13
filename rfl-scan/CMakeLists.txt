@@ -37,10 +37,9 @@ foreach (impl ${implicit_includes})
 endforeach ()
 message ("xXX ${implicit}")
 set (rfl-scan_DEFINES "IMPLICIT=\"${implicit}\"")
-#set (implicit "")
-#
+
 set (CMAKE_CXX_FLAGS "-fno-rtti -fno-exceptions ${LLVM_CXX_FLAGS} -Wno-strict-aliasing")
-#set (CMAKE_LD_FLAGS ${LLVM_LIBRARIES})
+
 set (rfl-scan_DEPS rfl)
 set (rfl-scan_LIBS
   clangFrontend
@@ -62,8 +61,13 @@ set (rfl-scan_LIBS
   ${LLVM_LIBRARIES}
   )
 add_module (rfl-scan)
+if (OS_MAC)
+  set (rpath "@executable_path/../lib")
+elseif (OS_LINUX)
+  set (rpath "$ORIGIN/../lib")
+endif ()
 set_target_properties(rfl-scan PROPERTIES
-	INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN"
+	INSTALL_RPATH "${rpath}"
 	BUILD_WITH_INSTALL_RPATH ON
 	)
 

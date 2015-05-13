@@ -12,3 +12,5 @@ set (PATCH_VERSION 0)
 set (BREAKPAD_URL "http://breakpad.nartech.org/bugreport.php")
 
 set (MODULE_TARGET_TYPE SHARED) #STATIC)
+
+set (CPACK_GENERATOR "TGZ")

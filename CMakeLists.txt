@@ -20,3 +20,5 @@ if (BUILD_TESTS)
 endif ()
 
 include (umake/UMakePackaging.cmake)
+
+install (FILES share/FindLibRFL.cmake share/RFLMacros.cmake DESTINATION share/librfl)
