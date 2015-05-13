@@ -62,5 +62,9 @@ set (rfl-scan_LIBS
   ${LLVM_LIBRARIES}
   )
 add_module (rfl-scan)
+set_target_properties(rfl-scan PROPERTIES
+	INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN"
+	BUILD_WITH_INSTALL_RPATH ON
+	)
 
 install (TARGETS rfl-scan RUNTIME DESTINATION bin)

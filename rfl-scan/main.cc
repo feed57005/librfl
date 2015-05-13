@@ -136,10 +136,7 @@ int main(int argc, const char **argv) {
   int ret = tool.run(factory.get());
 
   if (Generators.empty()) {
-    llvm::outs() << "Using default generator";
-    std::string filename = output_name;
-    filename+= ".cc";
-    rfl::GeneratePackage(filename.c_str(), package.get());
+    llvm::outs() << "No generator specified\n";
   } else {
     for (std::string const &generator : Generators) {
       llvm::outs() << "Using generator " << generator;

@@ -27,5 +27,6 @@ add_module (rfl)
 if (BUILD_TESTS)
 	add_subdirectory (test)
 endif ()
+
 install (FILES ${rfl_PUBLIC_HEADERS} DESTINATION include)
 install (TARGETS rfl LIBRARY DESTINATION lib)
