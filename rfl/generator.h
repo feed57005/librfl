@@ -15,6 +15,10 @@ public:
     output_path_ = out_path;
   }
 
+  void set_generate_plugin(bool generate) {
+    generate_plugin_ = generate;
+  }
+
   virtual int Generate(Package const *pkg);
 
 protected:
@@ -30,6 +34,7 @@ protected:
 
 protected:
   std::string output_path_;
+  bool generate_plugin_;
 };
 
 } // namespace rfl

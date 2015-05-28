@@ -41,13 +41,14 @@ bool AnnotationParser::Parse(std::string &err_msg) {
   if (!Tokenize() || tokens_.size() < 4) {
     return false;
   }
-#if 1
   if (tokens_[0].kind_ != kSymbol_Token ||
       tokens_[1].kind_ != kAssign_Token ||
       tokens_[2].kind_ != kCurlyBracketLeft_Token ||
       tokens_[tokens_.size() -1].kind_ != kCurlyBracketRight_Token) {
     return false;
   }
+
+  kind_ = tokens_[0].range_.str();
   size_t i = 3;
   StringRef key;
   while (i < tokens_.size() -1) {
@@ -60,7 +61,6 @@ bool AnnotationParser::Parse(std::string &err_msg) {
     }
     i++;
   }
-#endif
   return true;
 }
 
@@ -171,17 +171,8 @@ bool AnnotationParser::Tokenize() {
   current_ = buffer_->getBufferStart();
   end_ = buffer_->getBufferEnd();
   tokens_.clear();
-#if 0
-  errs() << "'";
-  while (current_ != end_) {
-    errs() << *current_;
-    current_++;
-  }
-  errs() << "'\n";
-#endif
   current_ = buffer_->getBufferStart();
   while (current_ != end_) {
-    //errs() << (int) *current_ << "'" << *current_ << "'\n";
     switch (*current_) {
       case (':'):
       case ('='): {
@@ -249,6 +240,10 @@ bool AnnotationParser::Tokenize() {
     }
   }
   return true;
+}
+
+char const *AnnotationParser::kind() const {
+  return kind_.c_str();
 }
 
 } // namespace scan

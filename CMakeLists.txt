@@ -4,7 +4,7 @@ include(umake/UMakeInit.cmake)
 option (BUILD_TESTS "Build tests" ON)
 
 if (BUILD_TESTS)
-	add_subdirectory (third_party/test)
+  add_subdirectory (third_party/test)
 endif ()
 
 if (COMPILER_CLANG OR COMPILER_GCC)
@@ -16,9 +16,13 @@ add_subdirectory (rfl)
 add_subdirectory (rfl-scan)
 
 if (BUILD_TESTS)
-	add_subdirectory(example)
+  add_subdirectory(example)
 endif ()
 
 include (umake/UMakePackaging.cmake)
 
-install (FILES share/FindLibRFL.cmake share/RFLMacros.cmake DESTINATION share/librfl)
+install (FILES
+  share/FindLibRFL.cmake
+  share/RFLMacros.cmake
+  share/UseRFL.cmake
+  DESTINATION share/librfl)

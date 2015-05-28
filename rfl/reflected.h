@@ -39,6 +39,7 @@ class Package;
 
 class RFL_EXPORT Annotation {
 public:
+  // TODO proper get/setters
   std::string value_;
   std::string file_;
   int line_;

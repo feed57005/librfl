@@ -11,9 +11,6 @@
 
 #include <string>
 
-// TODO get rid of LLVM deps & move to rfl ?
-// TODO store annotations already parsed?
-
 namespace rfl {
 namespace scan {
 
@@ -29,6 +26,9 @@ public:
       std::string &error_msg);
 
   StringRef GetValue(StringRef key);
+
+  char const *kind() const;
+
 
   template <class E>
   void Enumerate(E const &inserter) const {
@@ -78,6 +78,7 @@ private:
   std::unique_ptr<MemoryBuffer> buffer_;
   SourceMgr source_mgr_;
   StringMap<std::string> value_map_;
+  std::string kind_;
 
   Tokens tokens_;
   StringRef::iterator current_;

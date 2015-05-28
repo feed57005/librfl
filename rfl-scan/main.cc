@@ -11,6 +11,7 @@
 #include "llvm/ADT/SmallString.h"
 
 #include "rfl/reflected.h"
+#include "rfl/generator.h"
 #include "rfl/repository.h"
 #include "rfl/native_library.h"
 #include "rfl-scan/ast_scan.h"
@@ -56,6 +57,10 @@ static cl::opt<std::string> Basedir("basedir",
                                     cl::desc("package basedir"),
                                     cl::cat(RflScanCategory));
 
+static cl::opt<bool> GeneratePlugin("plugin",
+                                    cl::desc("generate pluging"),
+                                    cl::cat(RflScanCategory));
+
 ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
   return [extra] (CommandLineArguments const &args){
     CommandLineArguments ret(args);
@@ -65,6 +70,7 @@ ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
 }
 
 typedef int (*GenPackage)(char const *path, rfl::Package *pkg);
+typedef rfl::Generator *(*CreateGenerator)();
 
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
@@ -87,6 +93,7 @@ int main(int argc, const char **argv) {
           .concat(Twine(pkg_upper).concat("_IMPLEMENTATION"))
           .str());
   extra_args.push_back("-D__RFL_SCAN__");
+  extra_args.push_back("-Wno-unused-local-typedefs");
 
   // split and insert IMPLICIT includes
   std::istringstream iss(std::string(IMPLICIT));
@@ -122,7 +129,6 @@ int main(int argc, const char **argv) {
 
   for (std::vector<std::string>::iterator it = Libs.begin(), e = Libs.end();
        it != e; ++it) {
-    llvm::outs() << "adding library " << *it << "\n";
     package->AddLibrary(*it);
   }
 
@@ -136,22 +142,32 @@ int main(int argc, const char **argv) {
 
   if (Generators.empty()) {
     llvm::outs() << "No generator specified\n";
-  } else {
-    for (std::string const &generator : Generators) {
-      llvm::outs() << "Using generator " << generator;
-      std::string err;
-      rfl::NativeLibrary lib = rfl::LoadNativeLibrary(generator.c_str(), &err);
-      if (!lib) {
-        llvm::errs() << err;
+    return 1;
+  }
+  for (std::string const &generator : Generators) {
+    llvm::outs() << "Using generator " << generator;
+    std::string err;
+    rfl::NativeLibrary lib = rfl::LoadNativeLibrary(generator.c_str(), &err);
+    if (!lib) {
+      llvm::errs() << err;
+      continue;
+    }
+    CreateGenerator create_gen =
+        (CreateGenerator)rfl::GetFunctionPointerFromNativeLibrary(
+            lib, "CreateGenerator");
+    if (create_gen != nullptr) {
+      rfl::Generator *gen = create_gen();
+      if (gen == nullptr) {
+        llvm::errs() << "CreateGenerator returned null";
         continue;
       }
-      GenPackage func = (GenPackage)rfl::GetFunctionPointerFromNativeLibrary(
-          lib, "GeneratePackage");
-      if (func == nullptr) {
-        llvm::errs() << "Could not find symbol GeneratePackage";
-        continue;
-      }
-      func(output_name.c_str(), package.get());
+      gen->set_output_path(output_name.c_str());
+      gen->set_generate_plugin(GeneratePlugin);
+      gen->Generate(package.get());
+      delete gen;
+    } else {
+      llvm::errs() << "Could not find symbol GeneratePackage";
+      continue;
     }
   }
   return ret;

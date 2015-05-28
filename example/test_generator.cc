@@ -157,16 +157,6 @@ int Gen::EndPackage(Package const *pkg) {
     std::string val = GetLibraryForName(import, "_rfl");
     manifest.SetEntry(key.c_str(), val.c_str());
   }
-#if 0
-  for (int i = 0; i < generated_package_->GetLibraryNum(); i++) {
-    std::string const &lib = generated_package_->GetLibraryAt(i);
-    std::string key = "libs.";
-    key+= lib;
-    std::string val = lib;
-    val += "_rfl";
-    manifest.SetEntry(key.c_str(), "");
-  }
-#endif
   std::string manifest_file = output_path_;
   manifest_file += ".ini";
   manifest.Save(manifest_file.c_str());
@@ -366,12 +356,7 @@ int Gen::EndClass(Class const *clazz) {
 
 } // namespace rfl
 
-using namespace rfl;
-
 extern "C"
-int GeneratePackage(char const *path, Package *pkg) {
-  std::cout << "package: " << pkg->name() << "-" << pkg->version() << std::endl;
-  Gen bg;
-  bg.set_output_path(path);
-  return bg.Generate(pkg);
+rfl::Generator *CreateGenerator() {
+  return new rfl::Gen();
 }

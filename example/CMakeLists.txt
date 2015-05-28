@@ -62,9 +62,9 @@ macro (add_rfl_module mid version)
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${mid}.ini
     ${CMAKE_BINARY_DIR}/$<CONFIGURATION>/bin/plugins)
   set_target_properties(${mid}_rfl PROPERTIES
-		INSTALL_RPATH "$ORIGIN/../../lib:$ORIGIN"
-		BUILD_WITH_INSTALL_RPATH ON
-		)
+    INSTALL_RPATH "$ORIGIN/../../lib:$ORIGIN"
+    BUILD_WITH_INSTALL_RPATH ON
+    )
 endmacro ()
 
 add_rfl_module (test_annotations 1.0)
@@ -76,22 +76,3 @@ set (dump_class_SOURCES
   )
 set (dump_class_DEPS test_annotations rfl)
 add_module(dump_class)
-
-#set (test_annotations_rfl_TARGET_TYPE SHARED)
-#set (test_annotations_rfl_SOURCES
-#  test_annotations_rfl.cc
-#  )
-#
-#set (test_annotations_rfl_DEPS test_annotations rfl)
-#
-#add_custom_command (OUTPUT test_annotations_rfl.cc
-#  COMMAND rfl-scan -p ${CMAKE_BINARY_DIR}/compile_commands.json
-#    -basedir ${CMAKE_SOURCE_DIR}
-#    -output test_annotations_rfl
-#    -pkg-name test_annotations -pkg-version=1.0
-#    -G ${generator_path}
-#    ${test_annotations_SOURCES}
-#  DEPENDS ${test_annotations_SOURCES} rfl-scan test_generator
-#  )
-#
-#add_module (test_annotations_rfl)

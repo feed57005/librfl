@@ -48,9 +48,9 @@ typedef std::map<std::string, ClassInstance*> ClassNameMap;
 typedef std::map<TypeId, ClassInstance *> ClassInstanceMap;
 
 struct EnumItem {
-	char const *id_;
-	char const *name_;
-	long value_;
+  char const *id_;
+  char const *name_;
+  long value_;
   EnumItem() : id_(nullptr), name_(nullptr), value_(0) {}
   EnumItem(char const *id, char const *name, long value)
     : id_(id), name_(name), value_(value) {}
@@ -64,8 +64,8 @@ struct EnumItem {
 };
 
 struct Enum {
-	TypeId enum_id_;
-	char const *enum_name_;
+  TypeId enum_id_;
+  char const *enum_name_;
   std::vector<EnumItem> items_;
 };
 typedef std::map<std::string, Enum*> EnumNameMap;
@@ -78,19 +78,20 @@ public:
 
   bool RegisterClass(ObjectClass *klass);
   bool UnregisterClass(ObjectClass *klass);
-	bool RegisterEnum(Enum *enm);
-	bool UnregisterEnum(Enum *enm);
+  bool RegisterEnum(Enum *enm);
+  bool UnregisterEnum(Enum *enm);
 
 
   ObjectClass *GetClassByName(char const *name);
-	Enum *GetEnumByName(char const *name);
+  Enum *GetEnumByName(char const *name);
 
 private:
-	TypeId GetNextTypeId();
+  TypeId GetNextTypeId();
+
 private:
   ClassInstanceMap instance_map_;
   ClassNameMap name_map_;
-	EnumNameMap enum_name_map_;
+  EnumNameMap enum_name_map_;
 
   struct LoadedPackage {
     std::string package_name_;

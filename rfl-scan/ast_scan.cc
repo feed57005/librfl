@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-// TODO strip base path
+// TODO document & externalize mandatory annotation tokens
 
 namespace rfl {
 namespace scan {
@@ -66,13 +66,13 @@ bool ASTScanner::TraverseDecl(Decl *D) {
     case (Decl::Function):
       if (isa<FunctionDecl>(D) && !cast<FunctionDecl>(D)->isFirstDecl())
         return base::TraverseDecl(D);
-			break;
+      break;
     case (Decl::Enum):
       if (isa<EnumDecl>(D) &&
           cast<EnumDecl>(D)->isThisDeclarationADefinition() !=
               VarDecl::DeclarationOnly)
         return _TraverseEnumDecl(cast<EnumDecl>(D));
-			break;
+      break;
     case (Decl::ClassTemplate):
     case (Decl::ParmVar):
       AddDecl(named_decl);
@@ -149,18 +149,18 @@ bool ASTScanner::ReadAnnotation(NamedDecl *D, Annotation *anno) {
   SourceLocation location = attribute->getLocation();
   PresumedLoc presumed_loc = src_manager.getPresumedLoc(location);
 
-  anno->value_ = attribute_text.str();
   anno->file_ = PathRelativeToBaseDir(presumed_loc, src_manager, StringRef(basedir()));
   anno->line_ = presumed_loc.getLine();
 
   std::string err_msg;
   std::unique_ptr<AnnotationParser> parser =
-    AnnotationParser::loadFromBuffer(StringRef(anno->value_), err_msg);
+    AnnotationParser::loadFromBuffer(attribute_text, err_msg);
   if (parser == nullptr) {
     errs() << "Failed to parse annotation: '" << anno->value_ << "'\n"
            << err_msg << "\n at " << anno->file_ << ":" << anno->line_ << "\n";
     return false;
   }
+  anno->value_ = parser->kind();
   parser->Enumerate(AnnoInserter(anno));
   return true;
 }
@@ -194,10 +194,10 @@ Namespace *ASTScanner::GetOrCreateNamespaceForRecord(Decl *D) {
       current_ns = ns;
 
     } else if (RecordDecl const *RD = dyn_cast<RecordDecl>(*I)) {
-      out_ << "nested record not supported '" << *RD << "' ";
+      errs() << "nested record not supported '" << *RD << "' \n";
       return nullptr;
     } else {
-      out_ << "?";
+      errs() << "Unknown declaration context\n";
       return nullptr;
     }
   }
@@ -210,22 +210,16 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
 
   std::string name = D->getDeclName().getAsString();
 
-  //llvm::raw_string_ostream OS(name);
-  //  PrintingPolicy policy(context_->getLangOpts());
-  //  policy.SuppressTagKeyword = true;
-  //  policy.SuppressScope = true;
-  //D->printQualifiedName(OS, policy);
-  //name = OS.str();
-
-  //out_ << "### " << qual_name.c_str() << "\n  " << *D << "\n";
-
   Annotation anno;
   if (ReadAnnotation(D, &anno)) {
     Namespace *ns = GetOrCreateNamespaceForRecord(D);
+    if (ns->FindClass(name.c_str())) {
+      // already processed
+      return true;
+    }
     Class *parent = CurrentClass();
     Class *super = nullptr;
     if (D->getNumBases()) {
-      //out_ << name.c_str() << " base classes:\n";
       for (CXXBaseSpecifier const &base : D->bases()) {
         QualType qt = base.getType();
         Type const *type = qt.getTypePtrOrNull();
@@ -237,9 +231,10 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
             llvm::raw_string_ostream OS(result);
             OS << *decl;
             super = base_ns->FindClass(OS.str().c_str());
+            if (super)
+              break;
           } else {
-						errs() << "Unable to find base class " << qual_name << " among bases\n";
-            //return true;
+            errs() << "Unable to find base class " << qual_name << " among bases\n";
           }
         }
       }
@@ -269,8 +264,6 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
     PrintingPolicy policy(context_->getLangOpts());
     policy.SuppressTagKeyword = true;
     policy.SuppressScope = true;
-    //type_name = D->getName().str();
-    //std::string qual_name = D->getQualifiedNameAsString();
     type_name = D->getType().getAsString(policy);
     std::string name = D->getDeclName().getAsString();
     Class *klass = CurrentClass();
@@ -280,8 +273,6 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
     }
     ASTRecordLayout const &layout = context_->getASTRecordLayout(D->getParent());
     uint32 offset = (uint32) layout.getFieldOffset(D->getFieldIndex());
-    //uint64 size = context_->getASTRecordLayout(D).getSize().getQuantity();
-    //out_ << klass->name().c_str() << " prop: " << name.c_str() << "\n";
     klass->AddProperty(new Property(name, type_name, offset, anno));
   }
   return true;
@@ -293,10 +284,8 @@ bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
   std::string name = D->getQualifiedNameAsString();
   name = D->getName().str();
   if (!ReadAnnotation(D, &anno)) {
-    //outs() << "no enum annotation '" << name << "'\n";
     return true;
   }
-  outs() << "Processing enum '"<< name << "'\n";
   SourceManager const &src_manager = context_->getSourceManager();
   SourceLocation source_loc = D->getSourceRange().getBegin();
   PresumedLoc presumed_loc = src_manager.getPresumedLoc(source_loc, false);
@@ -314,8 +303,7 @@ bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
     item.id_ = e_item->getNameAsString();
     llvm::APSInt const &value = e_item->getInitVal();
     item.value_ = (long) value.getSExtValue();
-    item.name_ = anno.GetEntry(item.id_);
-		//outs() << " " << item.id_ << " = " << item.value_ << " # " << anno.GetEntry(item.id_)<<"\n";
+    item.name_ = anno.GetEntry(item.id_); // XXX check
     e->AddEnumItem(item);
   }
   if (!parent) {
@@ -327,19 +315,18 @@ bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
 }
 
 bool ASTScanner::_TraverseMethodDecl(CXXMethodDecl *D) {
-	// Ignore overloaded operators for now
-	if (D->isOverloadedOperator() || class_queue_.empty())
-		return true;
+  // Ignore overloaded operators for now
+  if (D->isOverloadedOperator() || class_queue_.empty())
+    return true;
   Annotation anno;
   if (!ReadAnnotation(D, &anno))
     return true;
   std::string name = D->getDeclName().getAsString();
-  outs() << " method: "<< name << " ";
-    PrintingPolicy policy(context_->getLangOpts());
-    policy.SuppressTagKeyword = true;
-    policy.SuppressScope = true;
-  std::string ret_type = D->getReturnType().getLocalUnqualifiedType().getAsString();
-  outs() << ret_type << " ";
+  PrintingPolicy policy(context_->getLangOpts());
+  policy.SuppressTagKeyword = true;
+  policy.SuppressScope = true;
+  std::string ret_type =
+      D->getReturnType().getLocalUnqualifiedType().getAsString();
 
   Class *klass = class_queue_.front();
   Method *method = new Method(name, anno);
@@ -348,22 +335,27 @@ bool ASTScanner::_TraverseMethodDecl(CXXMethodDecl *D) {
       new Argument("return", Argument::kReturn_Kind, ret_type, Annotation()));
 
   for (CXXMethodDecl::param_iterator it = D->param_begin();
-       it != D->param_end();
-       ++it) {
+       it != D->param_end(); ++it) {
     ParmVarDecl *param = *it;
     Annotation param_anno;
     if (!ReadAnnotation(param, &param_anno)) {
       errs() << "parameter not annotated\n";
       continue;
     }
-		llvm::StringRef param_name = param->getName().str();
-		if (param_name.empty()) {
+    llvm::StringRef param_name = param->getName().str();
+    if (param_name.empty()) {
       errs() << "Unnamed parameter\n";
       continue;
     }
-    std::string param_type = param->getType().getLocalUnqualifiedType().getAsString();
-    outs() << param_type << " " << param_name << ", ";
-    std::string kind_anno = param_anno.GetEntry("kind");
+    std::string param_type =
+        param->getType().getLocalUnqualifiedType().getAsString();
+    char const *kind_entry = param_anno.GetEntry("kind");
+    if (!kind_entry) {
+      errs() << "Missing 'kind' annotation on argument " << param_name << "\n";
+      // FIXME method & params are invalid, release memory
+      return true;
+    }
+    std::string kind_anno = kind_entry;
     Argument::Kind kind;
     if (kind_anno.compare("in") == 0) {
       kind = Argument::kInput_Kind;
@@ -373,13 +365,13 @@ bool ASTScanner::_TraverseMethodDecl(CXXMethodDecl *D) {
       kind = Argument::kInOut_Kind;
     } else {
       errs() << "Unknown argument kind '" << kind_anno << "'\n";
-      continue;
+      // FIXME method & params are invalid, release memory
+      return true;
     }
 
     Argument *arg = new Argument(param_name, kind, param_type, param_anno);
     method->AddArgument(arg);
   }
-  outs() << "\n";
 
   return true;
 }
@@ -388,11 +380,9 @@ void ASTScanner::AddDecl(NamedDecl *D) {
   std::string name = D->getQualifiedNameAsString();
   Annotation anno;
   if (ReadAnnotation(D, &anno)) {
-    out_ << D->getDeclKindName() << " " << name.c_str() << " : "
-         << anno.value_.c_str() << " | " << anno.file_ << ":" << anno.line_
-         << "\n";
-  } else {
-    //out_ << "-- " << D->getDeclKindName() << " " << name.c_str() << "\n";
+    outs() << "Found unknown annotated declaration " << D->getDeclKindName()
+           << " " << name.c_str() << " : " << anno.value_.c_str() << " | "
+           << anno.file_ << ":" << anno.line_ << "\n";
   }
 }
 

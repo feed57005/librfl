@@ -5,19 +5,19 @@
 # LIBRFL_INCLUDE_DIRS
 # LIBRFL_LIBRARIES
 
-find_program(_rfl_scan_exe
+find_program(LIBRFL_RFLSCAN_EXE
   NAMES rfl-scan
-  HINTS $ENV{LIBRFL_PATH}/bin
+  HINTS ${LIBRFL_PATH}/bin $ENV{LIBRFL_PATH}/bin
   DOC "rfl-scan executable location")
 
 find_library(_librfl
   NAMES rfl librfl
-  HINTS $ENV{LIBRFL_PATH}/lib
+  HINTS ${LIBRFL_PATH}/lib $ENV{LIBRFL_PATH}/lib
 )
 
 find_path(LIBRFL_INCLUDE_DIRS
-  reflected.h
-  HINTS $ENV{LIBRFL_PATH}/include
+  rfl/reflected.h
+  HINTS ${LIBRFL_PATH}/include $ENV{LIBRFL_PATH}/include
   )
 
 if (_librfl)
