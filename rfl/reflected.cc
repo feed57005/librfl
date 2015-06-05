@@ -73,6 +73,7 @@ Property &Property::operator=(Property const &x) {
 ////////////////////////////////////////////////////////////////////////////////
 
 Enum::Enum(std::string const &name,
+           std::string const &type,
            std::string const &header_file,
            Annotation const &anno,
            Namespace *ns,
@@ -80,12 +81,14 @@ Enum::Enum(std::string const &name,
     : Reflected(name, anno),
       namespace_(ns),
       parent_class_(parent),
+      type_(type),
       header_file_(header_file) {
 }
 Enum::Enum(Enum const &x)
     : Reflected(x),
       namespace_(x.namespace_),
       parent_class_(x.parent_class_),
+      type_(x.type_),
       items_(x.items_),
       header_file_(x.header_file_) {
 }
@@ -93,6 +96,7 @@ Enum &Enum::operator=(Enum const &x) {
   Reflected::operator=(x);
   namespace_ = x.namespace_;
   parent_class_ = x.parent_class_;
+  type_ = x.type_;
   items_ = x.items_;
   header_file_ = x.header_file_;
   return *this;

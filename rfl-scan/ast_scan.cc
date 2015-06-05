@@ -279,23 +279,32 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
 }
 
 bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
-  Annotation anno;
-
   std::string name = D->getQualifiedNameAsString();
   name = D->getName().str();
+
+  Annotation anno;
   if (!ReadAnnotation(D, &anno)) {
     return true;
   }
-  SourceManager const &src_manager = context_->getSourceManager();
-  SourceLocation source_loc = D->getSourceRange().getBegin();
-  PresumedLoc presumed_loc = src_manager.getPresumedLoc(source_loc, false);
-  std::string header_file = StripBasedir(presumed_loc.getFilename(), basedir());
+  QualType intQT = D->getIntegerType().getLocalUnqualifiedType();
+  std::string type = intQT.getAsString();
+
   Class *parent = CurrentClass();
   Namespace *ns = nullptr;
   if (parent == nullptr) {
     ns = GetOrCreateNamespaceForRecord(D);
+    if (ns->FindEnum(name.c_str()) != nullptr)
+      return true;
+  } else if (parent->FindEnum(name.c_str()) != nullptr){
+      return true;
   }
-  Enum *e = new Enum(name, header_file, anno, ns, parent);
+
+
+  SourceManager const &src_manager = context_->getSourceManager();
+  SourceLocation source_loc = D->getSourceRange().getBegin();
+  PresumedLoc presumed_loc = src_manager.getPresumedLoc(source_loc, false);
+  std::string header_file = StripBasedir(presumed_loc.getFilename(), basedir());
+  Enum *e = new Enum(name, type, header_file, anno, ns, parent);
   for (EnumDecl::enumerator_iterator it = D->enumerator_begin();
        it != D->enumerator_end(); ++it) {
     EnumConstantDecl *e_item = *it;

@@ -106,6 +106,7 @@ public:
 public:
   Enum() {}
   Enum(std::string const &name,
+       std::string const &type,
        std::string const &header_file,
        Annotation const &anno,
        Namespace *ns,
@@ -121,9 +122,11 @@ public:
   EnumItem const &GetEnumItemAt(size_t idx) const;
   size_t GetNumEnumItems() const;
 
+  std::string const &type() const { return type_; }
 private:
   Namespace *namespace_;
   Class *parent_class_;
+  std::string type_;
   std::vector<EnumItem> items_;
   std::string header_file_;
 };
