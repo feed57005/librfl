@@ -6,7 +6,6 @@ set (rfl_PUBLIC_HEADERS
   generator.h
   native_library.h
   reflected.h
-  repository.h
   rfl_export.h
   type_info.h
   types.h
@@ -17,8 +16,8 @@ set (rfl_SOURCES
   generator.cc
   native_library.cc
   reflected.cc
-  repository.cc
   )
+set (rfl_DEFINES RFL_IMPLEMENTATION)
 
 if (OS_LINUX)
   set (rfl_LIBS dl)
