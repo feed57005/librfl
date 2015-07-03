@@ -16,9 +16,9 @@
 
 #include "rfl/reflected.h"
 #include "rfl/generator.h"
-#include "rfl/repository.h"
 #include "rfl/native_library.h"
 #include "rfl-scan/ast_scan.h"
+#include "rfl-scan/compilation_db.h"
 
 #include <iostream>
 #include <sstream>
@@ -34,28 +34,28 @@ static cl::extrahelp MoreHelp("\nMore help text...");
 static cl::OptionCategory RflScanCategory("rfl-scan options");
 static std::unique_ptr<opt::OptTable> Options(createDriverOptTable());
 static cl::list<std::string> Generators("G",
-                                        cl::desc("Specify output generator"),
+                                        cl::desc("Specify output Generator plugin"),
                                         cl::value_desc("generator-name"),
                                         cl::cat(RflScanCategory));
 static cl::list<std::string> Imports("i",
                                      cl::Prefix,
                                      cl::ZeroOrMore,
-                                     cl::desc("import rfl library"),
+                                     cl::desc("Import rfl library"),
                                      cl::cat(RflScanCategory));
 static cl::list<std::string> Libs("l",
                                   cl::Prefix,
                                   cl::ZeroOrMore,
-                                  cl::desc("link library"),
+                                  cl::desc("Link library"),
                                   cl::cat(RflScanCategory));
 
 static cl::opt<std::string> OutputName("output",
-                                       cl::desc("output file name prefix"),
+                                       cl::desc("Output file name prefix"),
                                        cl::cat(RflScanCategory));
 static cl::opt<std::string> PackageName("pkg-name",
-                                        cl::desc("package name"),
+                                        cl::desc("Package name"),
                                         cl::cat(RflScanCategory));
 static cl::opt<std::string> PackageVersion("pkg-version",
-                                           cl::desc("package version"),
+                                           cl::desc("Package version"),
                                            cl::cat(RflScanCategory));
 static cl::opt<std::string> Basedir("basedir",
                                     cl::desc("package basedir"),
@@ -64,6 +64,16 @@ static cl::opt<std::string> Basedir("basedir",
 static cl::opt<bool> GeneratePlugin("plugin",
                                     cl::desc("generate pluging"),
                                     cl::cat(RflScanCategory));
+
+static std::string StripBasedir(std::string const &filename,
+                                std::string const &basedir) {
+  size_t basedir_pos = filename.find(basedir);
+  if (basedir_pos != std::string::npos && basedir_pos == 0) {
+    return filename.substr(basedir.length() + 1,
+                           filename.length() - basedir.length());
+  }
+  return filename;
+}
 
 ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
   return [extra] (CommandLineArguments const &args){
@@ -80,8 +90,12 @@ int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
 
   CommonOptionsParser options_parser(argc, argv, RflScanCategory);
-  ClangTool tool(options_parser.getCompilations(),
-                 options_parser.getSourcePathList());
+
+  std::vector<std::string> source_path_list =
+      options_parser.getSourcePathList();
+  CompilationDatabase &default_cdb = options_parser.getCompilations();
+  rfl::scan::ScanCompilationDatabase cdb(default_cdb, source_path_list);
+  ClangTool tool(cdb, source_path_list);
   tool.clearArgumentsAdjusters();
 
   SmallString<128> resource_dir(LLVM_PREFIX);
@@ -115,15 +129,13 @@ int main(int argc, const char **argv) {
   tool.appendArgumentsAdjuster(
      getInsertArgumentAdjuster(extra_args, ArgumentInsertPosition::BEGIN));
 
-  std::unique_ptr<rfl::Repository> repository(new rfl::Repository());
-
   std::string const &output_name = OutputName.getValue();
   std::string const &basedir = Basedir.getValue();
   std::string const &pkg_name = PackageName.getValue();
   std::string const &pkg_version = PackageVersion.getValue();
   std::unique_ptr<rfl::Package> package(new rfl::Package(pkg_name.c_str(), pkg_version.c_str()));
 
-  // load imports
+  // handle imports
   for (std::vector<std::string>::iterator it = Imports.begin(),
                                           e = Imports.end();
        it != e; ++it) {
@@ -131,13 +143,21 @@ int main(int argc, const char **argv) {
     package->AddImport(*it);
   }
 
+  // handle libs
   for (std::vector<std::string>::iterator it = Libs.begin(), e = Libs.end();
        it != e; ++it) {
     package->AddLibrary(*it);
   }
 
+  // handle sources
+  for (std::string const &src : source_path_list) {
+    std::string rel_src = StripBasedir(src, Basedir.getValue());
+    rfl::PackageFile *pkg_file = package->GetOrCreatePackageFile(rel_src);
+    pkg_file->set_is_dependecy(false);
+  }
+
   std::unique_ptr<rfl::scan::ASTScannerContext> scan_ctx(
-    new rfl::scan::ASTScannerContext(repository.get(), package.get(), Basedir.getValue())
+    new rfl::scan::ASTScannerContext(package.get(), Basedir.getValue())
     );
 
   std::unique_ptr<rfl::scan::ASTScanActionFactory> factory(

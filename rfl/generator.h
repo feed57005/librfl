@@ -26,11 +26,15 @@ public:
   virtual int Generate(Package const *pkg);
 
 protected:
-  virtual int TraverseNamespace(Namespace const *ns);
+  virtual int TraverseFile(PackageFile const *file);
+  virtual int TraverseNamespace(Namespace const *ns,
+                                PackageFile const *file = nullptr);
   virtual int TraverseClass(Class const *klass);
 
   virtual int BeginPackage(Package const *pkg) = 0;
   virtual int EndPackage(Package const *pkg) = 0;
+  virtual int BeginFile(PackageFile const *file) = 0;
+  virtual int EndFile(PackageFile const *file) = 0;
   virtual int BeginClass(Class const *klass) = 0;
   virtual int EndClass(Class const *klass) = 0;
   virtual int BeginNamespace(Namespace const *ns) = 0;

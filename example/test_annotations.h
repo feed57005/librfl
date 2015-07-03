@@ -7,17 +7,11 @@
 
 #include "rfl/annotations.h"
 #include "object.h"
+#include "test_primitives.h"
 
 namespace test {
 
 class TestBaseObject;
-
-enum rfl_enum(name = "Test Enum",
-              kTest1 = "Test One",
-              kTest2 = "Test Two") TestEnum {
-  kTest1 = 0,
-  kTest2,
-};
 
 class rfl_class(name = "Test Base Object",
                 package = "test_annotations") TestBaseObject

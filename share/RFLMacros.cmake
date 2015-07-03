@@ -1,12 +1,16 @@
 macro (add_module_rfl mid version)
   set (output_files
-    ${CMAKE_CURRENT_BINARY_DIR}/${mid}_rfl.h
-    ${CMAKE_CURRENT_BINARY_DIR}/${mid}_rfl.cc
-    #${CMAKE_CURRENT_BINARY_DIR}/${mid}.ini
+    ${CMAKE_CURRENT_BINARY_DIR}/${mid}_export.rfl.h
+    ${CMAKE_CURRENT_BINARY_DIR}/${mid}.rfl.h
+    ${CMAKE_CURRENT_BINARY_DIR}/${mid}.rfl.cc
     )
   set (annotated_sources)
   foreach (src ${${mid}_RFL_SOURCES})
     list (APPEND annotated_sources ${CMAKE_CURRENT_SOURCE_DIR}/${src})
+    list (APPEND output_files
+      ${CMAKE_CURRENT_BINARY_DIR}/${src}.rfl.cc
+      ${CMAKE_CURRENT_BINARY_DIR}/${src}.rfl.h
+      )
   endforeach ()
 
   set (imports)
@@ -16,7 +20,7 @@ macro (add_module_rfl mid version)
 
   add_custom_command (
     DEPENDS ${annotated_sources} ${RFL_GENERATOR}
-    COMMAND ${LIBRFL_RFLSCAN_EXE} -p ${CMAKE_BINARY_DIR}/compile_commands.json
+    COMMAND ${LIBRFL_RFLSCAN_EXE} -p ${CMAKE_BINARY_DIR}
       -basedir ${CMAKE_SOURCE_DIR}
       -output ${mid}
       -pkg-name ${mid} -pkg-version=${version}
@@ -40,9 +44,9 @@ endmacro ()
 
 macro (add_rfl_sources mid version)
   set (${mid}_rfl_SOURCES
-    ${CMAKE_CURRENT_BINARY_DIR}/${mid}_rfl.h
-    ${CMAKE_CURRENT_BINARY_DIR}/${mid}_rfl.cc
-    ${CMAKE_CURRENT_BINARY_DIR}/${mid}.ini
+    ${CMAKE_CURRENT_BINARY_DIR}/${mid}.rfl.h
+    ${CMAKE_CURRENT_BINARY_DIR}/${mid}.rfl.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/${mid}_export.rfl.h
     )
   set (${mid}_rfl_DEPS ${mid} ${${mid}_DEPS})
   set (${mid}_rfl_RFL_IMPORTS)
@@ -52,11 +56,15 @@ macro (add_rfl_sources mid version)
   set (annotated_sources)
   foreach (src ${ARGN})
     list (APPEND annotated_sources ${CMAKE_CURRENT_SOURCE_DIR}/${src})
+    list (APPEND ${mid}_rfl_SOURCES
+      ${CMAKE_CURRENT_BINARY_DIR}/${src}.rfl.cc
+      ${CMAKE_CURRENT_BINARY_DIR}/${src}.rfl.h
+      )
   endforeach ()
   add_custom_command (
     DEPENDS ${annotated_sources} ${RFL_GENERATOR}
     OUTPUT ${${mid}_rfl_SOURCES}
-    COMMAND ${LIBRFL_RFLSCAN_EXE} -p ${CMAKE_BINARY_DIR}/compile_commands.json
+    COMMAND ${LIBRFL_RFLSCAN_EXE} -p ${CMAKE_BINARY_DIR}
       -basedir ${CMAKE_SOURCE_DIR}
       -output ${mid}
       -pkg-name ${mid} -pkg-version=${version}
@@ -70,9 +78,9 @@ endmacro ()
 
 macro (add_rfl_module mid version)
   set (${mid}_rfl_SOURCES
-    ${mid}_rfl.h
-    ${mid}_rfl.cc
-    ${mid}.ini
+    ${CMAKE_CURRENT_BINARY_DIR}/${mid}.rfl.h
+    ${CMAKE_CURRENT_BINARY_DIR}/${mid}.rfl.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/${mid}_export.rfl.h
     )
   set (${mid}_rfl_INCLUDE_DIRS ${${mid}_INCLUDE_DIRS} ${CMAKE_CURRENT_BUILD_DIR})
   set (${mid}_rfl_TARGET_TYPE SHARED)
@@ -88,9 +96,13 @@ macro (add_rfl_module mid version)
   set (annotated_sources)
   foreach (src ${${mid}_SOURCES})
     list (APPEND annotated_sources ${CMAKE_CURRENT_SOURCE_DIR}/${src})
+    list (APPEND ${mid}_rfl_SOURCES
+      ${CMAKE_CURRENT_BINARY_DIR}/${src}.rfl.cc
+      ${CMAKE_CURRENT_BINARY_DIR}/${src}.rfl.h
+      )
   endforeach ()
   add_custom_command (OUTPUT ${${mid}_rfl_SOURCES}
-    COMMAND ${LIBRFL_RFLSCAN_EXE} -p ${CMAKE_BINARY_DIR}/compile_commands.json
+    COMMAND ${LIBRFL_RFLSCAN_EXE} -p ${CMAKE_BINARY_DIR}
       -basedir ${CMAKE_SOURCE_DIR}
       -output ${mid}
       -pkg-name ${mid} -pkg-version=${version}

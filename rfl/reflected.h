@@ -39,6 +39,9 @@ typedef std::vector<Argument *> Arguments;
 class Method;
 typedef std::vector<Method *> Methods;
 
+class PackageFile;
+typedef std::vector<PackageFile *> PackageFiles;
+
 class Package;
 
 class RFL_EXPORT Annotation {
@@ -181,7 +184,7 @@ private:
 
 class RFL_EXPORT EnumContainer {
 public:
-  EnumContainer() {}
+  EnumContainer();
   void AddEnum(Enum *e);
   void RemoveEnum(Enum *e);
   Enum *FindEnum(char const *enum_name) const;
@@ -196,7 +199,7 @@ public:
   Class() {}
 
   Class(std::string const &name,
-        std::string const &header_file,
+        PackageFile *pkg_file,
         Annotation const &anno,
         Property **props = nullptr,
         Class **nested = nullptr,
@@ -205,6 +208,8 @@ public:
   Namespace *class_namespace() const { return namespace_; }
   Class *parent_class() const { return parent_; }
   Class *super_class() const { return super_; }
+  std::string const &header_file() const;
+  PackageFile *package_file() const;
 
   void AddProperty(Property *prop);
   void RemoveProperty(Property *prop);
@@ -224,10 +229,6 @@ public:
   size_t GetNumClasses() const;
   Class *GetClassAt(size_t idx) const;
 
-  std::string const &header_file() const { return header_file_; }
-
-  virtual void *CreateInstance() { return nullptr; }
-
 private:
   friend class Namespace;
   void set_class_namespace(Namespace *ns) { namespace_ = ns; }
@@ -240,7 +241,7 @@ private:
   Properties properties_;
   Classes classes_;
   Methods methods_;
-  std::string header_file_;
+  PackageFile *pkg_file_;
 };
 
 class RFL_EXPORT Namespace : public Reflected, public EnumContainer {
@@ -270,6 +271,26 @@ private:
   Namespaces namespaces_;
 };
 
+class RFL_EXPORT PackageFile {
+public:
+  PackageFile(std::string const &path);
+
+  std::string const &source_path() const;
+  std::string filename() const;
+  bool is_dependency() const;
+  void set_is_dependecy(bool is);
+
+  void AddClass(Class *klass);
+  void RemoveClass(Class *klass);
+  size_t GetNumClasses() const;
+  Class *GetClassAt(size_t idx) const;
+
+private:
+  std::string source_path_;
+  bool is_dependency_;
+  Classes classes_;
+};
+
 class RFL_EXPORT Package : public Namespace {
 public:
   Package(std::string const &name,
@@ -286,10 +307,18 @@ public:
 
   std::string const &version() const { return version_; }
 
+  PackageFile *GetOrCreatePackageFile(std::string const &path);
+
+  void AddPackageFile(PackageFile *pkg_file);
+  void RemovePackageFile(PackageFile *pkg_file);
+  size_t GetNumPackageFiles() const;
+  PackageFile *GetPackageFileAt(size_t idx) const;
+
 private:
   std::vector<std::string> imports_;
   std::vector<std::string> libs_;
   std::string version_;
+  PackageFiles files_;
 };
 
 class RFL_EXPORT PackageManifest {

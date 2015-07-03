@@ -8,6 +8,8 @@ set (rfl-scan_SOURCES
   annotation_parser.h
   ast_scan.cc
   ast_scan.h
+  compilation_db.cc
+  compilation_db.h
   main.cc
   )
 set (rfl-scan_TARGET_TYPE executable)

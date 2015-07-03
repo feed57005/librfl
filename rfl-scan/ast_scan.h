@@ -6,7 +6,6 @@
 #define __RFL_AST_SCAN_ACTION_H__
 
 #include "rfl/reflected.h"
-#include "rfl/repository.h"
 
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/AST/ASTConsumer.h"
@@ -23,15 +22,13 @@ using namespace clang;
 
 class ASTScannerContext {
 public:
-  ASTScannerContext(Repository *repository, Package *pkg, std::string const &basedir)
-    : repository_(repository), package_(pkg), basedir_(basedir) {}
+  ASTScannerContext(Package *pkg, std::string const &basedir)
+      : package_(pkg), basedir_(basedir) {}
 
-  Repository *repository() const { return repository_; }
   Package *package() const { return package_; }
   std::string const &basedir() const { return basedir_; }
 
 private:
-  Repository *repository_;
   Package *package_;
   std::string basedir_;
 };
@@ -59,6 +56,8 @@ private:
   bool _TraverseFieldDecl(FieldDecl *D);
 
   bool _TraverseMethodDecl(CXXMethodDecl *D);
+
+  bool _TraverseTypedefDecl(TypedefDecl *D);
 
   void AddDecl(NamedDecl *D);
 

@@ -8,6 +8,7 @@
 
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/Basic/TargetInfo.h"
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
@@ -21,6 +22,8 @@
 namespace rfl {
 namespace scan {
 
+namespace {
+
 struct AnnoInserter {
   AnnoInserter(Annotation *anno) : anno_(anno) {}
 
@@ -30,72 +33,6 @@ struct AnnoInserter {
 
   Annotation *anno_;
 };
-
-ASTScanner::ASTScanner(ASTScannerContext *scan_ctx, raw_ostream *out)
-    : scanner_context_(scan_ctx), context_(nullptr), out_(out ? *out : outs()) {
-}
-
-void ASTScanner::HandleTranslationUnit(ASTContext &Context) {
-  TranslationUnitDecl *D = Context.getTranslationUnitDecl();
-  context_ = &Context;
-  TraverseDecl(D);
-}
-
-bool ASTScanner::TraverseDecl(Decl *D) {
-  NamedDecl *named_decl = cast<NamedDecl>(D);
-  if (named_decl == nullptr || named_decl->isInvalidDecl())
-    return base::TraverseDecl(D);
-
-  // Filter out unsupported decls at the global namespace level
-  switch (named_decl->getKind()) {
-    case (Decl::CXXRecord):
-      // skip forward declaration
-      if (cast<CXXRecordDecl>(D)->isThisDeclarationADefinition() == VarDecl::DeclarationOnly)
-        return base::TraverseDecl(D);
-      else
-        return _TraverseCXXRecord(cast<CXXRecordDecl>(D));
-
-    case (Decl::Field):
-      if (!isa<FieldDecl>(D))
-        return base::TraverseDecl(D);
-      return _TraverseFieldDecl(cast<FieldDecl>(D));
-
-    case (Decl::CXXMethod):
-      if (isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isFirstDecl())
-        return _TraverseMethodDecl(cast<CXXMethodDecl>(D));
-      return base::TraverseDecl(D);
-
-    case (Decl::CXXConstructor):
-    case (Decl::CXXDestructor):
-    case (Decl::Function):
-      if (isa<FunctionDecl>(D) && !cast<FunctionDecl>(D)->isFirstDecl())
-        return base::TraverseDecl(D);
-      break;
-    case (Decl::Enum):
-      if (isa<EnumDecl>(D) &&
-          cast<EnumDecl>(D)->isThisDeclarationADefinition() !=
-              VarDecl::DeclarationOnly)
-        return _TraverseEnumDecl(cast<EnumDecl>(D));
-      break;
-    case (Decl::ClassTemplate):
-    case (Decl::ParmVar):
-      AddDecl(named_decl);
-      break;
-    default:
-      break;
-  }
-  return base::TraverseDecl(D);
-}
-
-static std::string StripBasedir(std::string const &filename,
-                                std::string const &basedir) {
-  size_t basedir_pos = filename.find(basedir);
-  if (basedir_pos != std::string::npos && basedir_pos == 0) {
-    return filename.substr(basedir.length() + 1,
-                           filename.length() - basedir.length());
-  }
-  return filename;
-}
 
 static std::string PathRelativeToBaseDir(PresumedLoc const &presumed_loc,
                                          SourceManager const &src_manager,
@@ -135,6 +72,71 @@ static std::string PathRelativeToBaseDir(PresumedLoc const &presumed_loc,
     path_str = path_str.substr(basedir.size()+1, path_str.size());
   }
   return path_str.str();
+}
+
+} // namespace
+
+////////////////////////////////////////////////////////////////////////////////
+
+ASTScanner::ASTScanner(ASTScannerContext *scan_ctx, raw_ostream *out)
+    : scanner_context_(scan_ctx), context_(nullptr), out_(out ? *out : outs()) {
+}
+
+void ASTScanner::HandleTranslationUnit(ASTContext &Context) {
+  TranslationUnitDecl *D = Context.getTranslationUnitDecl();
+  context_ = &Context;
+
+  TraverseDecl(D);
+}
+
+bool ASTScanner::TraverseDecl(Decl *D) {
+  NamedDecl *named_decl = cast<NamedDecl>(D);
+  if (named_decl == nullptr || named_decl->isInvalidDecl())
+    return base::TraverseDecl(D);
+
+  // Filter out unsupported decls at the global namespace level
+  switch (named_decl->getKind()) {
+    case (Decl::CXXRecord):
+      // skip forward declaration
+      if (cast<CXXRecordDecl>(D)->isThisDeclarationADefinition() == VarDecl::DeclarationOnly)
+        return base::TraverseDecl(D);
+      else
+        return _TraverseCXXRecord(cast<CXXRecordDecl>(D));
+
+    case (Decl::Field):
+      if (!isa<FieldDecl>(D))
+        return base::TraverseDecl(D);
+      return _TraverseFieldDecl(cast<FieldDecl>(D));
+
+    case (Decl::CXXMethod):
+      if (isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isFirstDecl())
+        return _TraverseMethodDecl(cast<CXXMethodDecl>(D));
+      return base::TraverseDecl(D);
+
+    case (Decl::CXXConstructor):
+    case (Decl::CXXDestructor):
+    case (Decl::Function):
+      if (isa<FunctionDecl>(D) && !cast<FunctionDecl>(D)->isFirstDecl())
+        return base::TraverseDecl(D);
+      break;
+    case (Decl::Enum):
+      if (isa<EnumDecl>(D) &&
+          cast<EnumDecl>(D)->isThisDeclarationADefinition() !=
+              VarDecl::DeclarationOnly)
+        return _TraverseEnumDecl(cast<EnumDecl>(D));
+      break;
+    case (Decl::Typedef):
+      if (isa<TypedefDecl>(D))
+        return _TraverseTypedefDecl(cast<TypedefDecl>(D));
+      break;
+    case (Decl::ClassTemplate):
+    case (Decl::ParmVar):
+      AddDecl(named_decl);
+      break;
+    default:
+      break;
+  }
+  return base::TraverseDecl(D);
 }
 
 bool ASTScanner::ReadAnnotation(NamedDecl *D, Annotation *anno) {
@@ -209,6 +211,28 @@ Namespace *ASTScanner::GetOrCreateNamespaceForRecord(Decl *D) {
   return current_ns;
 }
 
+bool ASTScanner::_TraverseTypedefDecl(TypedefDecl *D) {
+  Annotation anno;
+  if (!ReadAnnotation(D, &anno)) {
+    return true;
+  }
+  std::string name = D->getDeclName().getAsString();
+  Namespace *ns = GetOrCreateNamespaceForRecord(D);
+  if (ns->FindClass(name.c_str())) {
+    // already processed
+    return true;
+  }
+  SourceManager const &src_manager = context_->getSourceManager();
+  SourceLocation source_loc = D->getSourceRange().getBegin();
+  PresumedLoc presumed_loc = src_manager.getPresumedLoc(source_loc, false);
+  std::string header_file = PathRelativeToBaseDir(presumed_loc, src_manager, basedir());
+  PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
+
+  Class *klass = new Class(name, pkg_file, anno, nullptr, nullptr, nullptr);
+  ns->AddClass(klass);
+  return true;
+}
+
 bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
   std::string qual_name = D->getQualifiedNameAsString();
 
@@ -247,9 +271,11 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
     SourceManager const &src_manager = context_->getSourceManager();
     SourceLocation source_loc = D->getSourceRange().getBegin();
     PresumedLoc presumed_loc = src_manager.getPresumedLoc(source_loc, false);
-    std::string header_file = StripBasedir(presumed_loc.getFilename(), basedir());
+    std::string header_file = PathRelativeToBaseDir(presumed_loc, src_manager, basedir());
 
-    Class *klass = new Class(name, header_file, anno, nullptr, nullptr, super);
+    PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
+
+    Class *klass = new Class(name, pkg_file, anno, nullptr, nullptr, super);
     if (!parent) {
       ns->AddClass(klass);
     }
@@ -307,7 +333,7 @@ bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
   SourceManager const &src_manager = context_->getSourceManager();
   SourceLocation source_loc = D->getSourceRange().getBegin();
   PresumedLoc presumed_loc = src_manager.getPresumedLoc(source_loc, false);
-  std::string header_file = StripBasedir(presumed_loc.getFilename(), basedir());
+  std::string header_file = PathRelativeToBaseDir(presumed_loc, src_manager, basedir());
   Enum *e = new Enum(name, type, header_file, anno, ns, parent);
   for (EnumDecl::enumerator_iterator it = D->enumerator_begin();
        it != D->enumerator_end(); ++it) {

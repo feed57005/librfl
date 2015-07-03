@@ -129,6 +129,9 @@ size_t Enum::GetNumEnumItems() const {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+EnumContainer::EnumContainer() {
+}
+
 void EnumContainer::AddEnum(Enum *e) {
   enums_.push_back(e);
 }
@@ -180,7 +183,7 @@ size_t Method::GetNumArguments() const {
 ////////////////////////////////////////////////////////////////////////////////
 
 Class::Class(std::string const &name,
-             std::string const &header_file,
+             PackageFile *pkg_file,
              Annotation const &anno,
              Property **props,
              Class **nested,
@@ -189,7 +192,7 @@ Class::Class(std::string const &name,
       namespace_(nullptr),
       parent_(nullptr),
       super_(super),
-      header_file_(header_file) {
+      pkg_file_(pkg_file) {
   if (props != nullptr) {
     Property **prop = &props[0];
     while (*prop != nullptr) {
@@ -203,6 +206,9 @@ Class::Class(std::string const &name,
       AddClass(*clazz);
       clazz++;
     }
+  }
+  if (pkg_file_) {
+    pkg_file_->AddClass(this);
   }
 }
 
@@ -294,6 +300,13 @@ Class *Class::GetClassAt(size_t idx) const {
   return classes_[idx];
 }
 
+std::string const &Class::header_file() const {
+  return pkg_file_->source_path();
+}
+
+PackageFile *Class::package_file() const {
+  return pkg_file_;
+}
 ////////////////////////////////////////////////////////////////////////////////
 
 Namespace::Namespace(std::string const &name,
@@ -376,6 +389,50 @@ Namespace *Namespace::GetNamespaceAt(size_t idx) const {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+PackageFile::PackageFile(std::string const &path)
+    : source_path_(path), is_dependency_(true) {
+}
+
+std::string const &PackageFile::source_path() const {
+  return source_path_;
+}
+
+std::string PackageFile::filename() const {
+  size_t pos = source_path_.find_last_of('/');
+  if (pos == std::string::npos)
+    return source_path_;
+  return source_path_.substr(pos+1);
+}
+
+void PackageFile::AddClass(Class *klass) {
+  classes_.push_back(klass);
+}
+
+void PackageFile::RemoveClass(Class *klass) {
+  Classes::iterator it = std::find(classes_.begin(), classes_.end(), klass);
+  if (it != classes_.end())
+    classes_.erase(it);
+}
+
+size_t PackageFile::GetNumClasses() const {
+  return classes_.size();
+}
+
+Class *PackageFile::GetClassAt(size_t idx) const {
+  return classes_[idx];
+}
+
+bool PackageFile::is_dependency() const {
+  return is_dependency_;
+}
+
+void PackageFile::set_is_dependecy(bool is) {
+  is_dependency_ = is;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 Package::Package(std::string const &name,
                  std::string const &version,
                  Namespace **nested)
@@ -405,6 +462,35 @@ std::string const &Package::GetLibraryAt(int idx) const {
 int Package::GetLibraryNum() const {
   return (int) libs_.size();
 }
+
+PackageFile *Package::GetOrCreatePackageFile(std::string const &path) {
+  for (PackageFile *file : files_) {
+    if (file->source_path().compare(path) == 0)
+      return file;
+  }
+  PackageFile *ret = new PackageFile(path);
+  AddPackageFile(ret);
+  return ret;
+}
+
+void Package::AddPackageFile(PackageFile *pkg_file) {
+  files_.push_back(pkg_file);
+}
+
+void Package::RemovePackageFile(PackageFile *pkg_file) {
+  PackageFiles::iterator it = std::find(files_.begin(), files_.end(), pkg_file);
+  if (it != files_.end())
+    files_.erase(it);
+}
+
+size_t Package::GetNumPackageFiles() const {
+  return files_.size();
+}
+
+PackageFile *Package::GetPackageFileAt(size_t idx) const {
+  return files_[idx];
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool PackageManifest::Load(char const *filename) {
