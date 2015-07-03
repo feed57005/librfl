@@ -5,8 +5,61 @@
 #include "rfl/generator.h"
 
 #include <set>
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <cstring>
+#include <cerrno>
 
 namespace rfl {
+
+
+std::string Generator::FilenameForPackageFile(PackageFile const *file, bool full, bool header) const {
+  std::string ret = full ? file->source_path() : file->filename();
+  if (header)
+    ret += h_file_suffix_;
+  else
+    ret += src_file_suffix_;
+  return ret;
+}
+
+// static
+bool Generator::WriteStreamToFile(std::string const &file,
+                            std::stringstream const &content) {
+  // TODO check whether file exists, if so compare it and write a new file
+  // only when they differ
+  std::ofstream file_out;
+  file_out.open(file);
+  if (!file_out.good()) {
+    std::cerr << "Failed to open file " << file << " " << std::strerror(errno)
+              << std::endl;
+    file_out.close();
+    return false;
+  }
+  file_out << content.str();
+  file_out.close();
+  return true;
+}
+
+// static
+std::string Generator::HeaderGuard(std::string const &name, bool begin) {
+  std::stringstream hguard;
+  std::string id = name;
+  std::replace(id.begin(), id.end(), '.', '_');
+  std::replace(id.begin(), id.end(), '/', '_');
+  std::replace(id.begin(), id.end(), ' ', '_');
+  std::transform(id.begin(), id.end(), id.begin(), ::toupper);
+  if (begin) {
+    hguard << "#ifndef __" << id << "_RFL_H__\n"
+           << "#define __" << id << "_RFL_H__\n\n";
+  } else {
+    hguard << "#endif // __" << id << "_RFL_H_\n";
+  }
+  return hguard.str();
+}
+
+Generator::Generator() : h_file_suffix_(".rfl.h"), src_file_suffix_(".rfl.cc") {
+}
 
 int Generator::Generate(Package const *pkg) {
   int ret = BeginPackage(pkg);

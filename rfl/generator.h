@@ -13,6 +13,7 @@ namespace rfl {
 
 class RFL_EXPORT Generator {
 public:
+  Generator();
   virtual ~Generator() {}
 
   void set_output_path(char const *out_path) {
@@ -40,9 +41,17 @@ protected:
   virtual int BeginNamespace(Namespace const *ns) = 0;
   virtual int EndNamespace(Namespace const *ns) = 0;
 
+  std::string FilenameForPackageFile(PackageFile const *file,
+                                     bool full,
+                                     bool header) const;
+  static std::string HeaderGuard(std::string const &name, bool begin);
+  static bool WriteStreamToFile(std::string const &file,
+                                std::stringstream const &content);
 protected:
   std::string output_path_;
   bool generate_plugin_;
+  std::string h_file_suffix_;
+  std::string src_file_suffix_;
 };
 
 } // namespace rfl
