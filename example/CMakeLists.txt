@@ -1,4 +1,7 @@
+# setup rfl cmake macros
 include (${CMAKE_SOURCE_DIR}/share/RFLMacros.cmake)
+set (RFL_GENERATOR test_generator)
+set (RFL_VERBOSE 1)
 set (LIBRFL_RFLSCAN_EXE rfl-scan)
 
 set (test_generator_TARGET_TYPE SHARED)
@@ -7,7 +10,6 @@ set (test_generator_SOURCES
   )
 set (test_generator_DEPS rfl)
 add_module(test_generator)
-set (RFL_GENERATOR test_generator)
 
 ####
 

@@ -34,6 +34,12 @@ struct AnnoInserter {
   Annotation *anno_;
 };
 
+struct AnnoDebugPrinter {
+  void operator()(std::string const &key, std::string const &value) const {
+    outs() << "  " << key << " : " << value << "\n";
+  }
+};
+
 static std::string PathRelativeToBaseDir(PresumedLoc const &presumed_loc,
                                          SourceManager const &src_manager,
                                          StringRef const &basedir) {
@@ -157,6 +163,9 @@ bool ASTScanner::ReadAnnotation(NamedDecl *D, Annotation *anno) {
 
   anno->file_ = PathRelativeToBaseDir(presumed_loc, src_manager, StringRef(basedir()));
   anno->line_ = presumed_loc.getLine();
+  if (verbose() > 2) {
+    outs() << anno->file_ << " | " << anno->line_ << " | annotation: '" << attribute_text << "'\n";
+  }
 
   std::string err_msg;
   std::unique_ptr<AnnotationParser> parser =
@@ -168,6 +177,9 @@ bool ASTScanner::ReadAnnotation(NamedDecl *D, Annotation *anno) {
   }
   anno->value_ = parser->kind();
   parser->Enumerate(AnnoInserter(anno));
+  if (verbose() > 2) {
+    parser->Enumerate(AnnoDebugPrinter());
+  }
   return true;
 }
 
@@ -190,11 +202,11 @@ Namespace *ASTScanner::GetOrCreateNamespaceForRecord(Decl *D) {
        ++I) {
     if (NamespaceDecl const *ND = dyn_cast<NamespaceDecl>(*I)) {
       std::string Result;
-      llvm::raw_string_ostream OS(Result);
-      OS << *ND;
-      Namespace *ns = current_ns->FindNamespace(OS.str().c_str());
+      llvm::raw_string_ostream os(Result);
+      os << *ND;
+      Namespace *ns = current_ns->FindNamespace(os.str().c_str());
       if (!ns) {
-        ns = new Namespace(OS.str());
+        ns = new Namespace(os.str());
         current_ns->AddNamespace(ns);
       }
       current_ns = ns;
@@ -228,8 +240,13 @@ bool ASTScanner::_TraverseTypedefDecl(TypedefDecl *D) {
   std::string header_file = PathRelativeToBaseDir(presumed_loc, src_manager, basedir());
   PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
 
-  Class *klass = new Class(name, pkg_file, anno, nullptr, nullptr, nullptr);
+  Class *klass = new Class(name, pkg_file, anno);
   ns->AddClass(klass);
+
+  if (verbose()) {
+    outs() << header_file << " | typedef " << name << "\n";
+  }
+
   return true;
 }
 
@@ -245,8 +262,10 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
       // already processed
       return true;
     }
+
     Class *parent = CurrentClass();
     Class *super = nullptr;
+
     if (D->getNumBases()) {
       for (CXXBaseSpecifier const &base : D->bases()) {
         QualType qt = base.getType();
@@ -275,11 +294,14 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
 
     PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
 
-    Class *klass = new Class(name, pkg_file, anno, nullptr, nullptr, super);
+    Class *klass = new Class(name, pkg_file, anno, super);
     if (!parent) {
       ns->AddClass(klass);
     }
     class_queue_.push_front(klass);
+    if (verbose()) {
+      outs() << header_file << " | class " << name << "\n";
+    }
     bool ret = base::TraverseDecl(D);
     class_queue_.pop_front();
     return ret;
@@ -304,6 +326,9 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
     ASTRecordLayout const &layout = context_->getASTRecordLayout(D->getParent());
     uint32 offset = (uint32) layout.getFieldOffset(D->getFieldIndex());
     klass->AddProperty(new Property(name, type_name, offset, anno));
+    if (verbose()) {
+      outs() << "  property: " << type_name << " " << name << "\n";
+    }
   }
   return true;
 }
@@ -334,7 +359,8 @@ bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
   SourceLocation source_loc = D->getSourceRange().getBegin();
   PresumedLoc presumed_loc = src_manager.getPresumedLoc(source_loc, false);
   std::string header_file = PathRelativeToBaseDir(presumed_loc, src_manager, basedir());
-  Enum *e = new Enum(name, type, header_file, anno, ns, parent);
+  PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
+  Enum *e = new Enum(name, type, pkg_file, anno, ns, parent);
   for (EnumDecl::enumerator_iterator it = D->enumerator_begin();
        it != D->enumerator_end(); ++it) {
     EnumConstantDecl *e_item = *it;
@@ -349,6 +375,9 @@ bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
     ns->AddEnum(e);
   } else {
     parent->AddEnum(e);
+  }
+  if (verbose()) {
+    outs() << header_file << " | enum " << name << "\n";
   }
   return true;
 }
@@ -372,6 +401,10 @@ bool ASTScanner::_TraverseMethodDecl(CXXMethodDecl *D) {
   klass->AddMethod(method);
   method->AddArgument(
       new Argument("return", Argument::kReturn_Kind, ret_type, Annotation()));
+
+  if (verbose()) {
+    outs() << "  method: " << name << "\n";
+  }
 
   for (CXXMethodDecl::param_iterator it = D->param_begin();
        it != D->param_end(); ++it) {

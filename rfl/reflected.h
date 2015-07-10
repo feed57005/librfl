@@ -111,15 +111,12 @@ public:
     std::string name_;
   };
 public:
-  Enum() {}
   Enum(std::string const &name,
        std::string const &type,
-       std::string const &header_file,
+       PackageFile *pkg_file,
        Annotation const &anno,
        Namespace *ns,
        Class *parent);
-  Enum(Enum const &x);
-  Enum &operator=(Enum const &x);
 
   Namespace *enum_namespace() const { return namespace_; }
   Class *parent_class() const { return parent_class_; }
@@ -130,12 +127,14 @@ public:
   size_t GetNumEnumItems() const;
 
   std::string const &type() const { return type_; }
+  PackageFile *package_file() const;
+
 private:
   Namespace *namespace_;
   Class *parent_class_;
   std::string type_;
   std::vector<EnumItem> items_;
-  std::string header_file_;
+  PackageFile *pkg_file_;
 };
 
 class RFL_EXPORT Argument : public Reflected {
@@ -201,9 +200,10 @@ public:
   Class(std::string const &name,
         PackageFile *pkg_file,
         Annotation const &anno,
+        Class *super = nullptr,
         Property **props = nullptr,
-        Class **nested = nullptr,
-        Class *super = nullptr);
+        Class **nested = nullptr
+        );
 
   Namespace *class_namespace() const { return namespace_; }
   Class *parent_class() const { return parent_; }
@@ -271,7 +271,7 @@ private:
   Namespaces namespaces_;
 };
 
-class RFL_EXPORT PackageFile {
+class RFL_EXPORT PackageFile : public EnumContainer {
 public:
   PackageFile(std::string const &path);
 

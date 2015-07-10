@@ -22,15 +22,19 @@ using namespace clang;
 
 class ASTScannerContext {
 public:
-  ASTScannerContext(Package *pkg, std::string const &basedir)
-      : package_(pkg), basedir_(basedir) {}
+  ASTScannerContext(Package *pkg,
+                    std::string const &basedir,
+                    unsigned verbose = 0)
+      : package_(pkg), basedir_(basedir), verbose_(verbose) {}
 
   Package *package() const { return package_; }
   std::string const &basedir() const { return basedir_; }
+  unsigned verbose() const { return verbose_; }
 
 private:
   Package *package_;
   std::string basedir_;
+  unsigned verbose_;
 };
 
 class ASTScanner : public ASTConsumer, public RecursiveASTVisitor<ASTScanner> {
@@ -65,6 +69,7 @@ private:
 
   Package *package() const { return scanner_context_->package(); }
   std::string const &basedir() const { return scanner_context_->basedir(); }
+  unsigned verbose() const { return scanner_context_->verbose(); }
 
 private:
   ASTScannerContext *scanner_context_;

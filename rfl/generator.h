@@ -45,6 +45,7 @@ protected:
                                      bool full,
                                      bool header) const;
   static std::string HeaderGuard(std::string const &name, bool begin);
+  // TODO fixme should check that path exist
   static bool WriteStreamToFile(std::string const &file,
                                 std::stringstream const &content);
 protected:

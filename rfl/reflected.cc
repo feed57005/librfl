@@ -78,7 +78,7 @@ Property &Property::operator=(Property const &x) {
 
 Enum::Enum(std::string const &name,
            std::string const &type,
-           std::string const &header_file,
+           PackageFile *pkg_file,
            Annotation const &anno,
            Namespace *ns,
            Class *parent)
@@ -86,24 +86,9 @@ Enum::Enum(std::string const &name,
       namespace_(ns),
       parent_class_(parent),
       type_(type),
-      header_file_(header_file) {
-}
-Enum::Enum(Enum const &x)
-    : Reflected(x),
-      namespace_(x.namespace_),
-      parent_class_(x.parent_class_),
-      type_(x.type_),
-      items_(x.items_),
-      header_file_(x.header_file_) {
-}
-Enum &Enum::operator=(Enum const &x) {
-  Reflected::operator=(x);
-  namespace_ = x.namespace_;
-  parent_class_ = x.parent_class_;
-  type_ = x.type_;
-  items_ = x.items_;
-  header_file_ = x.header_file_;
-  return *this;
+      pkg_file_(pkg_file) {
+  if (pkg_file_)
+    pkg_file_->AddEnum(this);
 }
 
 void Enum::AddEnumItem(EnumItem const &item) {
@@ -125,6 +110,10 @@ Enum::EnumItem const &Enum::GetEnumItemAt(size_t idx) const {
 
 size_t Enum::GetNumEnumItems() const {
   return items_.size();
+}
+
+PackageFile *Enum::package_file() const {
+  return pkg_file_;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -185,9 +174,10 @@ size_t Method::GetNumArguments() const {
 Class::Class(std::string const &name,
              PackageFile *pkg_file,
              Annotation const &anno,
+             Class *super,
              Property **props,
-             Class **nested,
-             Class *super)
+             Class **nested
+             )
     : Reflected(name, anno),
       namespace_(nullptr),
       parent_(nullptr),

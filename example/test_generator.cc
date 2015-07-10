@@ -55,11 +55,6 @@ int Gen::BeginPackage(Package const *pkg) {
   WriteStreamToFile(export_file, hout_);
 
   hout_.str(std::string());
-
-  std::string header_file = output_path_;
-  header_file += ".rfl.h";
-
-  AddInclude(header_file, src_includes_);
   return 0;
 }
 
@@ -177,7 +172,7 @@ int Gen::EndFile(PackageFile const *file) {
      << hout_.str()
      << HeaderGuard(file->source_path(), false);
 
-  std::string h_file = file->filename();
+  std::string h_file = file->source_path();
   h_file += h_file_suffix_;
   WriteStreamToFile(h_file, os);
 
@@ -189,8 +184,8 @@ int Gen::EndFile(PackageFile const *file) {
   }
   os << "\n\n" << out_.str();
 
-  std::string c_file = file->filename();
-  c_file += ".rfl.cc";
+  std::string c_file = file->source_path();
+  c_file += src_file_suffix_;
   WriteStreamToFile(c_file, os);
 
   hout_.str(std::string());
@@ -260,7 +255,7 @@ int Gen::EndClass(Class const *clazz) {
     hout_ << " : public " << parent_class_name;
     if (clazz->super_class()->package_file() != generated_file_) {
       std::string inc = clazz->super_class()->header_file();
-      inc+= ".rfl.h";
+      inc+= h_file_suffix_;
       AddInclude(inc, h_includes_);
     }
   } else {

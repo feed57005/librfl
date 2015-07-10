@@ -58,12 +58,16 @@ static cl::opt<std::string> PackageVersion("pkg-version",
                                            cl::desc("Package version"),
                                            cl::cat(RflScanCategory));
 static cl::opt<std::string> Basedir("basedir",
-                                    cl::desc("package basedir"),
+                                    cl::desc("Package basedir"),
                                     cl::cat(RflScanCategory));
 
 static cl::opt<bool> GeneratePlugin("plugin",
-                                    cl::desc("generate pluging"),
+                                    cl::desc("Generate pluging"),
                                     cl::cat(RflScanCategory));
+static cl::opt<unsigned> Verbose("verbose",
+                                 cl::desc("Verbose level"),
+                                 cl::init(0),
+                                 cl::cat(RflScanCategory));
 
 static std::string StripBasedir(std::string const &filename,
                                 std::string const &basedir) {
@@ -106,12 +110,14 @@ int main(int argc, const char **argv) {
   std::string pkg_upper = PackageName.getValue();
   std::transform(pkg_upper.begin(), pkg_upper.end(), pkg_upper.begin(), ::toupper);
 
+  // TODO why is this here?
   extra_args.push_back(
       Twine("-D")
           .concat(Twine(pkg_upper).concat("_IMPLEMENTATION"))
           .str());
+
   extra_args.push_back("-D__RFL_SCAN__");
-  extra_args.push_back("-Wno-unused-local-typedefs");
+  extra_args.push_back("-Wno-unused-local-typedef"); // TODO hack
 
   // split and insert IMPLICIT includes
   std::istringstream iss(std::string(IMPLICIT));
@@ -119,12 +125,15 @@ int main(int argc, const char **argv) {
             std::istream_iterator<std::string>(),
             std::back_inserter(extra_args));
 
-  for (auto str : extra_args) {
-    outs() << str << "\n";
+  if (Verbose.getValue()) {
+    for (auto str : extra_args) {
+      outs() << str << "\n";
+    }
+    outs().flush();
   }
-  outs().flush();
 
-  outs() << "using resource dir: " << resource_dir.c_str() << "\n";
+  if (Verbose.getValue())
+    outs() << "using resource dir: " << resource_dir.c_str() << "\n";
 
   tool.appendArgumentsAdjuster(
      getInsertArgumentAdjuster(extra_args, ArgumentInsertPosition::BEGIN));
@@ -157,11 +166,12 @@ int main(int argc, const char **argv) {
   }
 
   std::unique_ptr<rfl::scan::ASTScannerContext> scan_ctx(
-    new rfl::scan::ASTScannerContext(package.get(), Basedir.getValue())
-    );
+      new rfl::scan::ASTScannerContext(package.get(), Basedir.getValue(),
+                                       Verbose.getValue()));
 
   std::unique_ptr<rfl::scan::ASTScanActionFactory> factory(
       new rfl::scan::ASTScanActionFactory(scan_ctx.get()));
+
   int ret = tool.run(factory.get());
 
   if (Generators.empty()) {
