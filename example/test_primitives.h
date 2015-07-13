@@ -9,8 +9,7 @@
 
 namespace test {
 
-typedef rfl_primitive(name = "Test Int Type",
-                      package = "test_annotations")
+typedef rfl_primitive(name = "Test Int Type")
 int TestInt;
 
 enum rfl_enum(name = "Test Enum",

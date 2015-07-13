@@ -38,7 +38,7 @@ private:
 };
 
 class ASTScanner : public ASTConsumer, public RecursiveASTVisitor<ASTScanner> {
-  typedef RecursiveASTVisitor<ASTScanner> base;
+  typedef RecursiveASTVisitor<ASTScanner> Base;
 
 public:
   ASTScanner(ASTScannerContext *scan_ctx, raw_ostream *out = nullptr);
@@ -50,26 +50,27 @@ public:
 
 private:
   bool ReadAnnotation(NamedDecl *D, Annotation *anno);
-  Class *CurrentClass() const {
-    return !class_queue_.empty() ? class_queue_.front() : nullptr;
-  }
+
   bool _TraverseCXXRecord(CXXRecordDecl *D);
-
   bool _TraverseEnumDecl(EnumDecl *D);
-
   bool _TraverseFieldDecl(FieldDecl *D);
-
   bool _TraverseMethodDecl(CXXMethodDecl *D);
-
   bool _TraverseTypedefDecl(TypedefDecl *D);
 
   void AddDecl(NamedDecl *D);
 
   Namespace *GetOrCreateNamespaceForRecord(Decl *D);
 
+  void LogDecl(NamedDecl *D) const;
+
+  Class *CurrentClass() const {
+    return !class_queue_.empty() ? class_queue_.front() : nullptr;
+  }
+
   Package *package() const { return scanner_context_->package(); }
   std::string const &basedir() const { return scanner_context_->basedir(); }
   unsigned verbose() const { return scanner_context_->verbose(); }
+  SourceManager const &src_manager() const;
 
 private:
   ASTScannerContext *scanner_context_;

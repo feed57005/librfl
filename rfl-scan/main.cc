@@ -125,15 +125,13 @@ int main(int argc, const char **argv) {
             std::istream_iterator<std::string>(),
             std::back_inserter(extra_args));
 
-  if (Verbose.getValue()) {
-    for (auto str : extra_args) {
-      outs() << str << "\n";
+  if (Verbose.getValue() > 1) {
+    for (std::string const &arg : extra_args) {
+      outs() << arg << "\n";
     }
+    outs() << "using resource dir: " << resource_dir.c_str() << "\n";
     outs().flush();
   }
-
-  if (Verbose.getValue())
-    outs() << "using resource dir: " << resource_dir.c_str() << "\n";
 
   tool.appendArgumentsAdjuster(
      getInsertArgumentAdjuster(extra_args, ArgumentInsertPosition::BEGIN));
@@ -166,7 +164,7 @@ int main(int argc, const char **argv) {
   }
 
   std::unique_ptr<rfl::scan::ASTScannerContext> scan_ctx(
-      new rfl::scan::ASTScannerContext(package.get(), Basedir.getValue(),
+      new rfl::scan::ASTScannerContext(package.get(), basedir,
                                        Verbose.getValue()));
 
   std::unique_ptr<rfl::scan::ASTScanActionFactory> factory(

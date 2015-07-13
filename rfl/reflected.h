@@ -30,8 +30,8 @@ typedef std::vector<Enum *> Enums;
 class Class;
 typedef std::vector<Class *> Classes;
 
-class Property;
-typedef std::vector<Property *> Properties;
+class Field;
+typedef std::vector<Field *> Fields;
 
 class Argument;
 typedef std::vector<Argument *> Arguments;
@@ -46,21 +46,63 @@ class Package;
 
 class RFL_EXPORT Annotation {
 public:
-  // TODO proper get/setters
-  std::string value_;
-  std::string file_;
-  int line_;
+  Annotation();
 
-  Annotation() {}
-  Annotation(std::string const &value, char const *file, int line);
   Annotation(Annotation const &x);
   Annotation &operator= (Annotation const &x);
 
   void AddEntry(std::string const &key, std::string const &value);
   char const *GetEntry(std::string const &key) const;
+
+  std::string const &kind() const { return kind_; }
+  void set_kind(std::string const &kind) { kind_ = kind; }
+
 private:
+  std::string kind_;
+
   typedef std::map<std::string, std::string> EntryMap;
   EntryMap entries_;
+};
+
+class RFL_EXPORT TypeQualifier {
+public:
+  TypeQualifier();
+  TypeQualifier(TypeQualifier const &x);
+  TypeQualifier &operator=(TypeQualifier const &x);
+
+  bool is_pointer() const { return is_pointer_; }
+  void set_is_pointer(bool is) { is_pointer_ = is; }
+
+  bool is_ref() const { return is_ref_; }
+  void set_is_ref(bool is) { is_ref_ = is; }
+
+  bool is_pod() const { return is_pod_; }
+  void set_is_pod(bool is) { is_pod_ = is; }
+
+  bool is_array() const { return is_array_; }
+  void set_is_array(bool is) { is_array_ = is; }
+
+  bool is_const() const { return is_const_; }
+  void set_is_const(bool is) { is_const_ = is; }
+
+  bool is_mutable() const { return is_mutable_; }
+  void set_is_mutable(bool is) { is_mutable_ = is; }
+
+  bool is_volatile() const { return is_volatile_; }
+  void set_is_volatile(bool is) { is_volatile_ = is; }
+
+  bool is_restrict() const { return is_restrict_; }
+  void set_is_restrict(bool is) { is_restrict_ = is; }
+
+private:
+  bool is_pointer_ : 1;
+  bool is_pod_ : 1;
+  bool is_array_ : 1;
+  bool is_const_ : 1;
+  bool is_ref_ : 1;
+  bool is_mutable_ : 1;
+  bool is_volatile_ : 1;
+  bool is_restrict_ : 1;
 };
 
 class RFL_EXPORT Reflected {
@@ -77,30 +119,30 @@ private:
   Annotation annotation_;
 };
 
-// XXX rename to Field
-class RFL_EXPORT Property : public Reflected {
+class RFL_EXPORT Field : public Reflected {
 public:
-  Property() {}
-
-  Property(std::string const &name,
-           std::string const &type,
-           uint32 offset,
-           Annotation const &anno);
-
-  Property(Property const &x);
-
-  Property &operator=(Property const &x);
+  Field(std::string const &name,
+        std::string const &type,
+        uint32 offset,
+        TypeQualifier const &type_qualifier,
+        Annotation const &anno);
 
   Class *parent_class() const { return class_; }
+
   std::string const &type() const { return type_; }
 
   uint32 offset() const { return offset_ ;}
+
+  TypeQualifier const &type_qualifier() const { return type_qualifier_; }
+
 private:
   std::string type_;
   uint32 offset_;
-  friend class Class;
-  void set_parent_class(Class *clazz) { class_ = clazz; }
+  TypeQualifier type_qualifier_;
   Class *class_;
+
+  friend class Class;
+  void set_parent_class(Class *clazz);
 };
 
 class RFL_EXPORT Enum : public Reflected {
@@ -195,13 +237,11 @@ private:
 
 class RFL_EXPORT Class : public Reflected, public EnumContainer {
 public:
-  Class() {}
-
   Class(std::string const &name,
         PackageFile *pkg_file,
         Annotation const &anno,
         Class *super = nullptr,
-        Property **props = nullptr,
+        Field **props = nullptr,
         Class **nested = nullptr
         );
 
@@ -211,11 +251,11 @@ public:
   std::string const &header_file() const;
   PackageFile *package_file() const;
 
-  void AddProperty(Property *prop);
-  void RemoveProperty(Property *prop);
-  size_t GetNumProperties() const;
-  Property *GetPropertyAt(size_t idx) const;
-  Property *FindProperty(char const *name) const;
+  void AddField(Field *prop);
+  void RemoveField(Field *prop);
+  size_t GetNumFields() const;
+  Field *GetFieldAt(size_t idx) const;
+  Field *FindField(char const *name) const;
 
   void AddMethod(Method *method);
   void RemoveMethod(Method *method);
@@ -238,7 +278,7 @@ private:
   Namespace *namespace_;
   Class *parent_;
   Class *super_;
-  Properties properties_;
+  Fields fields_;
   Classes classes_;
   Methods methods_;
   PackageFile *pkg_file_;
@@ -277,6 +317,7 @@ public:
 
   std::string const &source_path() const;
   std::string filename() const;
+
   bool is_dependency() const;
   void set_is_dependecy(bool is);
 

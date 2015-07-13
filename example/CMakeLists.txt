@@ -1,7 +1,7 @@
 # setup rfl cmake macros
 include (${CMAKE_SOURCE_DIR}/share/RFLMacros.cmake)
 set (RFL_GENERATOR test_generator)
-set (RFL_VERBOSE 1)
+set (RFL_VERBOSE 2)
 set (LIBRFL_RFLSCAN_EXE rfl-scan)
 
 set (test_generator_TARGET_TYPE SHARED)
@@ -26,6 +26,7 @@ set (test_annotations_SOURCES
 set (test_annotations_DEPS rfl)
 set (test_annotations_RFL_SOURCES
   test_annotations.h
+  test_primitives.h
   )
 add_module_rfl(test_annotations 1.0)
 

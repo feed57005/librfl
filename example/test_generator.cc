@@ -235,7 +235,7 @@ int Gen::EndClass(Class const *clazz) {
 
   AddInclude(clazz->header_file(), src_includes_);
 
-  if (clazz->annotation().value_.compare("primitive") == 0) {
+  if (clazz->annotation().kind().compare("primitive") == 0) {
     hout_ << " // Primitive "<< clazz->name() << "\n\n";
     return 0;
   }
@@ -300,12 +300,12 @@ int Gen::EndClass(Class const *clazz) {
   // InitClassProperties impl.
   out_ << "bool " << class_name << "::InitClassProperties(test::ClassInstance *instance) {\n"
        << "  " << class_name << "::ID = instance->class_id_;\n";
-  if (clazz->GetNumProperties() > 0) {
+  if (clazz->GetNumFields() > 0) {
     out_ << "\n  // Properties\n\n";
   }
-  for (size_t i = 0; i < clazz->GetNumProperties(); i++) {
-    Property *prop = clazz->GetPropertyAt(i);
-    Annotation const &anno = prop->annotation();
+  for (size_t i = 0; i < clazz->GetNumFields(); i++) {
+    Field *field = clazz->GetFieldAt(i);
+    Annotation const &anno = field->annotation();
     std::string kind = anno.GetEntry("kind");
     char const *id = anno.GetEntry("id");
     char const *name = anno.GetEntry("name");
@@ -317,9 +317,9 @@ int Gen::EndClass(Class const *clazz) {
       char const *page_step = anno.GetEntry("page_step");
       char const *page_size = anno.GetEntry("page_size");
       char const *precision = anno.GetEntry("precision");
-      out_ << "  instance->AddProperty(new test::NumericProperty<" << prop->type() << ">(\"" << id
-           << "\", \"" << name << "\", " << prop->offset() << ", class_id(), "
-           << "rfl::AnyVar((" << prop->type() << ")(" << default_value << ")), "
+      out_ << "  instance->AddProperty(new test::NumericProperty<" << field->type() << ">(\"" << id
+           << "\", \"" << name << "\", " << field->offset() << ", class_id(), "
+           << "rfl::AnyVar((" << field->type() << ")(" << default_value << ")), "
            << min << ", "
            << max << ", "
            << step << ", "
@@ -330,16 +330,28 @@ int Gen::EndClass(Class const *clazz) {
     } else if (kind.compare("enum") == 0) {
       out_ << "  Enum *enum_" << id << " =\n"
            << "    test::ClassRepository::GetSharedInstance()->GetEnumByName(\""
-           << prop->type() << "\");\n";
+           << field->type() << "\");\n";
       out_ << "  instance->AddProperty(new test::EnumProperty(enum_" << id
-           << ", \"" << id << "\", \"" << name << "\", " << prop->offset()
-           << ", " << prop->type() << "::" << anno.GetEntry("default")
+           << ", \"" << id << "\", \"" << name << "\", " << field->offset()
+           << ", " << field->type() << "::" << anno.GetEntry("default")
            << "));\n";
     } else {
       char const *default_value = anno.GetEntry("default");
+      std::stringstream any_value;
+      if (field->type_qualifier().is_pointer()) {
+        any_value << "(" << field->type() << ")";
+        if (!default_value)
+          default_value = "nullptr";
+      } else if (field->type_qualifier().is_const()) {
+        std::string no_const = field->type().substr(6);
+        any_value << "(" << no_const << ")";
+      } else {
+        any_value << field->type();
+      }
+      any_value << "("<<(default_value ? default_value : "") << ")";
       out_ << "  instance->AddProperty(new test::Property(\"" << id << "\", \""
-           << name << "\", " << prop->offset() << ", class_id(), "
-           << "rfl::AnyVar((" << prop->type() << ")(" << default_value << "))"
+           << name << "\", " << field->offset() << ", class_id(), "
+           << "rfl::AnyVar(" << any_value.str() << ")"
            << "));\n";
     }
   }

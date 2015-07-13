@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "rfl/reflected.h"
+
 #include <algorithm>
 #include <iostream>
 #include <assert.h>
@@ -11,19 +12,16 @@
 
 namespace rfl {
 
-Annotation::Annotation(std::string const &value, char const *file, int line)
-  : value_(value), file_(file), line_(line) {}
+Annotation::Annotation() {
+}
 
 Annotation::Annotation(Annotation const &x)
-  : value_(x.value_), file_(x.file_), line_(x.line_), entries_(x.entries_) {
-  }
+    : kind_(x.kind_), entries_(x.entries_) {
+}
 
-Annotation &Annotation::operator= (Annotation const &x) {
-  value_ = x.value_;
-  file_ = x.file_;
-  line_ = x.line_;
+Annotation &Annotation::operator=(Annotation const &x) {
+  kind_ = x.kind_;
   entries_ = x.entries_;
-      std::cout << "copys "<< x.entries_.size()<< " " << entries_.size() << std::endl;
   return *this;
 }
 
@@ -40,6 +38,39 @@ char const *Annotation::GetEntry(std::string const &key) const {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+TypeQualifier::TypeQualifier()
+    : is_pointer_(false),
+      is_pod_(false),
+      is_array_(false),
+      is_const_(false),
+      is_ref_(false),
+      is_mutable_(false),
+      is_volatile_(false) {
+}
+
+TypeQualifier::TypeQualifier(TypeQualifier const &x)
+    : is_pointer_(x.is_pointer_),
+      is_pod_(x.is_pod_),
+      is_array_(x.is_array_),
+      is_const_(x.is_const_),
+      is_ref_(x.is_ref_),
+      is_mutable_(x.is_mutable_),
+      is_volatile_(x.is_volatile_) {
+}
+
+TypeQualifier &TypeQualifier::operator=(TypeQualifier const &x) {
+  is_pointer_ = x.is_pointer_;
+  is_pod_ = x.is_pod_;
+  is_array_ = x.is_array_;
+  is_const_ = x.is_const_;
+  is_ref_ = x.is_ref_;
+  is_mutable_ = x.is_mutable_;
+  is_volatile_ = x.is_volatile_;
+  return *this;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 Reflected::Reflected(std::string const &name) : name_(name) {
 }
 
@@ -49,29 +80,20 @@ Reflected::Reflected(std::string const &name, Annotation const &anno)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Property::Property(std::string const &name,
-                   std::string const &type,
-                   uint32 offset,
-                   Annotation const &anno)
+Field::Field(std::string const &name,
+             std::string const &type,
+             uint32 offset,
+             TypeQualifier const &type_qualifier,
+             Annotation const &anno)
     : Reflected(name, anno),
       type_(type),
       offset_(offset),
+      type_qualifier_(type_qualifier),
       class_(nullptr) {
 }
 
-Property::Property(Property const &x)
-    : Reflected(x),
-      type_(x.type_),
-      offset_(x.offset_),
-      class_(x.class_) {
-}
-
-Property &Property::operator=(Property const &x) {
-  Reflected::operator=(x);
-  type_ = x.type_;
-  offset_ = x.offset_;
-  class_ = x.class_;
-  return *this;
+void Field::set_parent_class(Class *clazz) {
+  class_ = clazz;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -175,7 +197,7 @@ Class::Class(std::string const &name,
              PackageFile *pkg_file,
              Annotation const &anno,
              Class *super,
-             Property **props,
+             Field **props,
              Class **nested
              )
     : Reflected(name, anno),
@@ -184,9 +206,9 @@ Class::Class(std::string const &name,
       super_(super),
       pkg_file_(pkg_file) {
   if (props != nullptr) {
-    Property **prop = &props[0];
+    Field **prop = &props[0];
     while (*prop != nullptr) {
-      AddProperty(*prop);
+      AddField(*prop);
       prop++;
     }
   }
@@ -202,30 +224,30 @@ Class::Class(std::string const &name,
   }
 }
 
-void Class::AddProperty(Property *prop) {
+void Class::AddField(Field *prop) {
   assert(prop != nullptr);
-  properties_.push_back(prop);
+  fields_.push_back(prop);
   prop->set_parent_class(this);
 }
 
-void Class::RemoveProperty(Property *prop) {
-  std::vector<Property *>::iterator it =
-      std::find(properties_.begin(), properties_.end(), prop);
-  if (it != properties_.end())
-    properties_.erase(it);
+void Class::RemoveField(Field *prop) {
+  std::vector<Field *>::iterator it =
+      std::find(fields_.begin(), fields_.end(), prop);
+  if (it != fields_.end())
+    fields_.erase(it);
   prop->set_parent_class(nullptr);
 }
 
-size_t Class::GetNumProperties() const {
-  return properties_.size();
+size_t Class::GetNumFields() const {
+  return fields_.size();
 }
 
-Property *Class::GetPropertyAt(size_t idx) const {
-  return properties_[idx];
+Field *Class::GetFieldAt(size_t idx) const {
+  return fields_[idx];
 }
 
-Property *Class::FindProperty(char const *name) const {
-  for (Property *prop : properties_) {
+Field *Class::FindField(char const *name) const {
+  for (Field *prop : fields_) {
     if (prop->name().compare(std::string(name)) == 0) {
       return prop;
     }
