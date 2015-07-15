@@ -39,8 +39,15 @@ std::vector<CompileCommand> ScanCompilationDatabase::getCompileCommands(
           if (result.size())
             return result;
         }
+				break;
       }
     }
+		// nothing found, try all other files
+		for (std::string const &src : source_files_) {
+			result = getCompileCommands(src);
+			if (!result.empty())
+				return result;
+		}
   }
   return result;
 }

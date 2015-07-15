@@ -30,6 +30,7 @@ elseif (OS_MAC)
   list (APPEND implicit_includes
     ${toolchain_path}/usr/include/c++/v1
     ${toolchain_path}/usr/lib/clang/6.0/include/
+    ${toolchain_path}/usr/lib/clang/6.1.0/include/
     ${toolchain_path}/usr/include
     )
 endif ()
