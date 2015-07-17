@@ -256,6 +256,8 @@ bool ASTScanner::_TraverseTypedefDecl(TypedefDecl *D) {
   PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
 
   Class *klass = new Class(name, pkg_file, anno);
+  klass->set_order(class_count());
+  set_class_count(class_count() + 1);
   ns->AddClass(klass);
 
   return true;
@@ -331,6 +333,8 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
   PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
 
   Class *klass = new Class(name, pkg_file, anno, super);
+  klass->set_order(class_count());
+  set_class_count(class_count() + 1);
   if (!parent) {
     ns->AddClass(klass);
   }

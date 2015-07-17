@@ -269,6 +269,9 @@ public:
   size_t GetNumClasses() const;
   Class *GetClassAt(size_t idx) const;
 
+  uint32 order() const;
+  void set_order(uint32 order);
+
 private:
   friend class Namespace;
   void set_class_namespace(Namespace *ns) { namespace_ = ns; }
@@ -282,6 +285,7 @@ private:
   Classes classes_;
   Methods methods_;
   PackageFile *pkg_file_;
+  uint32 order_;
 };
 
 class RFL_EXPORT Namespace : public Reflected, public EnumContainer {

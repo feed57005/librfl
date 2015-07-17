@@ -319,6 +319,15 @@ std::string const &Class::header_file() const {
 PackageFile *Class::package_file() const {
   return pkg_file_;
 }
+
+uint32 Class::order() const {
+  return order_;
+}
+
+void Class::set_order(uint32 order) {
+  order_ = order;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 Namespace::Namespace(std::string const &name,
