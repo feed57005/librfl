@@ -35,6 +35,9 @@ elseif (OS_MAC)
     )
 endif ()
 
+set (implicit_includes)
+set (implicit)
+
 foreach (impl ${implicit_includes})
   set (implicit "${implicit} -I${impl}")
 endforeach ()
