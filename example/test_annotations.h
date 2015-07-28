@@ -8,6 +8,7 @@
 #include "rfl/annotations.h"
 #include "example/object.h"
 #include "example/test_primitives.h"
+#include "example/example_export.h"
 
 #include <vector>
 
@@ -17,10 +18,10 @@ namespace test {
 
 typedef std::vector<std::string> StringArray;
 
-struct rfl_primitive(name = "Vector") Vector {
+struct EXAMPLE_EXPORT rfl_primitive(name = "Vector") Vector {
 };
 
-class rfl_class(name = "Test Base Object") TestBaseObject
+class EXAMPLE_EXPORT rfl_class(name = "Test Base Object") TestBaseObject
     : public test::Object {
 public:
   typedef std::vector<float> FloatArray;
@@ -64,6 +65,23 @@ public:
 
   rfl_method(name = "Do Something")
   void DoSomething(rfl_arg(name = "A", kind = "in") int a);
+
+  int *ptr_value() const;
+  void set_ptr_value(int *ptr_value);
+
+  int const *cptr_value() const;
+  void set_cptr_value(int const *cptr_value);
+
+  int const const_int_value() const;
+
+  TestEnum test_enum() const;
+  void set_test_enum(TestEnum test_enum);
+
+  Flags flags() const;
+  void set_flags(Flags flags);
+
+  Float2 float2() const;
+  void set_float2(Float2 float2);
 
 private:
   typedef std::vector<int> IntArray;
@@ -112,10 +130,17 @@ private:
   Float2 float2_;
 };
 
-class rfl_class(name = "Test Object") TestObject : public TestBaseObject {
+class EXAMPLE_EXPORT rfl_class(name = "Test Object") TestObject
+    : public TestBaseObject {
 public:
   TestObject();
-  ~TestObject();
+  virtual ~TestObject();
+
+	int *int_ptr() const;
+	void set_int_ptr(int *ptr);
+
+  Flags more_flags() const;
+  void set_more_flags(Flags more_flags);
 
 private:
   typedef int *IntPtr;

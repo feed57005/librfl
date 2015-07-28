@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "object.h"
-#include "package_manifest.h"
+#include "example/object.h"
+#include "example/package_manifest.h"
 #include <iostream>
 
 namespace test {

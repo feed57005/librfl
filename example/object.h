@@ -9,7 +9,8 @@
 #include "rfl/any_var.h"
 #include "rfl/native_library.h"
 
-#include "call_desc.h"
+#include "example/example_export.h"
+#include "example/call_desc.h"
 
 #include <string>
 #include <vector>
@@ -25,7 +26,7 @@ typedef rfl::uint32 TypeId;
 typedef std::map<std::string, Property *> PropertyMap;
 typedef std::map<std::string, Method *> MethodMap;
 
-struct ClassInstance {
+struct EXAMPLE_EXPORT ClassInstance {
   ClassInstance()
       : class_id_(-1),
         object_class_(nullptr),
@@ -51,7 +52,7 @@ struct ClassInstance {
 typedef std::map<std::string, ClassInstance*> ClassNameMap;
 typedef std::map<TypeId, ClassInstance *> ClassInstanceMap;
 
-struct EnumItem {
+struct EXAMPLE_EXPORT EnumItem {
   char const *id_;
   char const *name_;
   long value_;
@@ -67,14 +68,14 @@ struct EnumItem {
   }
 };
 
-struct Enum {
+struct EXAMPLE_EXPORT Enum {
   TypeId enum_id_;
   char const *enum_name_;
   std::vector<EnumItem> items_;
 };
 typedef std::map<std::string, Enum*> EnumNameMap;
 
-class ClassRepository {
+class EXAMPLE_EXPORT ClassRepository {
 public:
   static ClassRepository *GetSharedInstance();
 
@@ -106,7 +107,7 @@ private:
   std::vector<LoadedPackage> package_libs_;
 };
 
-class Object {
+class EXAMPLE_EXPORT Object {
 public:
   virtual ~Object() {}
 
@@ -120,7 +121,7 @@ private:
   ObjectClass *object_class_;
 };
 
-class Property {
+class EXAMPLE_EXPORT Property {
 public:
   Property(char const *name,
            char const *human_name,
@@ -162,7 +163,7 @@ protected:
   rfl::AnyVar default_value_;
 };
 
-class Method {
+class EXAMPLE_EXPORT Method {
 public:
   Method(char const *name, char const *human_name, TypeId cid, CallDesc *desc);
 
@@ -224,7 +225,7 @@ protected:
   int const precision_;
 };
 
-class EnumProperty : public Property {
+class EXAMPLE_EXPORT EnumProperty : public Property {
 public:
   EnumProperty(Enum *enm,
                char const *name,
@@ -237,11 +238,13 @@ public:
                  enm->enum_id_,
                  rfl::AnyVar(default_value)), enum_(enm) {}
 
+  Enum *enumeration() const { return enum_; }
+
 private:
   Enum *enum_;
 };
 
-class ObjectClass {
+class EXAMPLE_EXPORT ObjectClass {
 public:
   static TypeId ID;
 

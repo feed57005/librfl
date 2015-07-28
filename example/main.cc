@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "object.h"
+#include "example/object.h"
 #include <iostream>
 
 std::ostream &operator<<(std::ostream &out, rfl::AnyVar const &value) {
@@ -53,6 +53,7 @@ struct MethodEnum {
   }
   test::Object *instance_;
 };
+
 int main(int argc, char **argv) {
   using namespace test;
   if (argc < 4) {

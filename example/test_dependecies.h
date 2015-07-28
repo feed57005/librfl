@@ -5,11 +5,12 @@
 #ifndef __TEST_DEPENDECIES_H__
 #define __TEST_DEPENDECIES_H__
 
-#include "test_annotations.h"
+#include "example/test_annotations.h"
+#include "example/example_export.h"
 
 namespace test {
 
-class rfl_class(name = "Extended Test Object", package="test_dependencies") ExtendedTestObject
+class EXAMPLE_EXPORT rfl_class(name = "Extended Test Object") ExtendedTestObject
     : public TestObject {
 
   void blabla();
@@ -24,7 +25,8 @@ private:
                step = 1,
                page_step = 1,
                page_size = 1,
-               precision = 0) int count_;
+               precision = 0)
+  int count_;
 };
 
 } // namespace test

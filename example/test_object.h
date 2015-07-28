@@ -6,7 +6,7 @@
 #define __TEST_OBJECT_H__
 
 #include "rfl/annotations.h"
-#include "object.h"
+#include "example/object.h"
 
 namespace test {
 
