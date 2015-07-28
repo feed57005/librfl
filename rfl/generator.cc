@@ -4,6 +4,9 @@
 
 #include "rfl/generator.h"
 
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
+
 #include <set>
 #include <iostream>
 #include <sstream>
@@ -13,52 +16,10 @@
 
 namespace rfl {
 
-
-std::string Generator::FilenameForPackageFile(PackageFile const *file, bool full, bool header) const {
-  std::string ret = full ? file->source_path() : file->filename();
-  if (header)
-    ret += h_file_suffix_;
-  else
-    ret += src_file_suffix_;
-  return ret;
+Generator::Generator() {
 }
 
-// static
-bool Generator::WriteStreamToFile(std::string const &file,
-                            std::stringstream const &content) {
-  // TODO check whether file exists, if so compare it and write a new file
-  // only when they differ
-  std::ofstream file_out;
-  file_out.open(file);
-  if (!file_out.good()) {
-    std::cerr << "Failed to open file " << file << " " << std::strerror(errno)
-              << std::endl;
-    file_out.close();
-    return false;
-  }
-  file_out << content.str();
-  file_out.close();
-  return true;
-}
-
-// static
-std::string Generator::HeaderGuard(std::string const &name, bool begin) {
-  std::stringstream hguard;
-  std::string id = name;
-  std::replace(id.begin(), id.end(), '.', '_');
-  std::replace(id.begin(), id.end(), '/', '_');
-  std::replace(id.begin(), id.end(), ' ', '_');
-  std::transform(id.begin(), id.end(), id.begin(), ::toupper);
-  if (begin) {
-    hguard << "#ifndef __" << id << "_RFL_H__\n"
-           << "#define __" << id << "_RFL_H__\n\n";
-  } else {
-    hguard << "#endif // __" << id << "_RFL_H_\n";
-  }
-  return hguard.str();
-}
-
-Generator::Generator() : h_file_suffix_(".rfl.h"), src_file_suffix_(".rfl.cc") {
+Generator::~Generator() {
 }
 
 int Generator::Generate(Package const *pkg) {
@@ -74,7 +35,20 @@ int Generator::Generate(Package const *pkg) {
     ret = EndFile(file);
   }
 
-  return EndPackage(pkg);
+  ret = EndPackage(pkg);
+  if (ret)
+    return ret;
+
+  // write output files listing
+  if (!output_file_.empty()) {
+    std::stringstream os;
+    for (std::string const &file : generated_files_) {
+      os << file << "\n";
+    }
+    if (!WriteToFile(output_file_.c_str(), os.str().c_str()))
+      return 1;
+  }
+  return 0;
 }
 
 int Generator::TraverseFile(PackageFile const *file) {
@@ -124,6 +98,77 @@ int Generator::TraverseClass(Class const *klass) {
       return ret;
   }
   return EndClass(klass);
+}
+
+size_t Generator::GetNumGeneratedFiles() const {
+  return generated_files_.size();
+}
+
+char const *Generator::GetGeneratedFileAt(size_t idx) const {
+  return generated_files_[idx].c_str();
+}
+
+void Generator::AddGeneratedFile(char const *file) {
+  std::string const filename(file);
+  std::vector<std::string>::const_iterator found =
+    std::find(generated_files_.begin(), generated_files_.end(), filename);
+  if (found == generated_files_.end())
+    generated_files_.push_back(filename);
+}
+
+void Generator::RemoveGeneratedFile(char const *file) {
+  std::string const filename(file);
+  std::vector<std::string>::iterator found =
+    std::find(generated_files_.begin(), generated_files_.end(), filename);
+  if (found != generated_files_.end())
+    generated_files_.erase(found);
+}
+
+char const *Generator::output_path() const {
+  return output_path_.c_str();
+}
+
+void Generator::set_output_path(char const *out_path) {
+  output_path_ = out_path;
+}
+
+char const *Generator::output_file() const {
+  return output_file_.c_str();
+}
+
+void Generator::set_output_file(char const *out_file) {
+  output_file_ = out_file;
+}
+
+void Generator::set_generate_plugin(bool generate) {
+  generate_plugin_ = generate;
+}
+
+bool Generator::generate_plugin() const {
+  return generate_plugin_;
+}
+
+bool Generator::WriteToFile(char const *file, char const *data) {
+  using namespace llvm::sys;
+
+  llvm::SmallString<256> path(file);
+  path::remove_filename(path);
+  if (fs::create_directories(path, true)) {
+    return false;
+  }
+  // TODO check whether file exists, if so compare it and write a new file
+  // only when they differ
+  std::ofstream file_out;
+  file_out.open(file);
+  if (!file_out.good()) {
+    std::cerr << "Failed to open file " << file << " " << std::strerror(errno)
+              << std::endl;
+    file_out.close();
+    return false;
+  }
+  file_out << data;
+  file_out.close();
+  return true;
 }
 
 } // namespace rfl

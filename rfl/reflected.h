@@ -51,17 +51,51 @@ public:
   Annotation(Annotation const &x);
   Annotation &operator= (Annotation const &x);
 
-  void AddEntry(std::string const &key, std::string const &value);
-  char const *GetEntry(std::string const &key) const;
+  void AddEntry(char const *key, char const *value);
+  char const *GetEntry(char const *key) const;
 
-  std::string const &kind() const { return kind_; }
-  void set_kind(std::string const &kind) { kind_ = kind; }
+  char const *kind() const;
+  void set_kind(char const *kind);
 
 private:
   std::string kind_;
 
   typedef std::map<std::string, std::string> EntryMap;
   EntryMap entries_;
+};
+
+class RFL_EXPORT TypeRef {
+public:
+	enum Kind {
+		kInvalid_Kind = 0,
+		kSystem_Kind,
+		kEnum_Kind,
+		kClass_Kind,
+	};
+
+	TypeRef();
+	TypeRef(TypeRef const &x);
+	TypeRef &operator=(TypeRef const &x);
+	~TypeRef();
+
+	Kind kind() const;
+
+	char const *type_name() const;
+	void set_type_name(char const *name);
+
+	Enum *enum_type() const;
+	void set_enum_type(Enum *enm);
+
+	Class *class_type() const;
+	void set_class_type(Class *klass);
+
+private:
+	Kind kind_;
+	std::string type_name_;
+	union {
+		Class *class_type_;
+		Enum *enum_type_;
+	};
 };
 
 class RFL_EXPORT TypeQualifier {
@@ -108,11 +142,11 @@ private:
 class RFL_EXPORT Reflected {
 public:
   Reflected() {}
-  Reflected(std::string const &name);
-  Reflected(std::string const &name, Annotation const &anno);
+  Reflected(char const *name);
+  Reflected(char const *name, Annotation const &anno);
 
-  std::string const &name() const { return name_; }
-  Annotation const &annotation() const { return annotation_; }
+  char const *name() const;
+  Annotation const &annotation() const;
 
 private:
   std::string name_;
@@ -121,22 +155,19 @@ private:
 
 class RFL_EXPORT Field : public Reflected {
 public:
-  Field(std::string const &name,
-        std::string const &type,
+  Field(char const *name,
+        TypeRef const &typeref,
         uint32 offset,
         TypeQualifier const &type_qualifier,
         Annotation const &anno);
 
-  Class *parent_class() const { return class_; }
-
-  std::string const &type() const { return type_; }
-
-  uint32 offset() const { return offset_ ;}
-
-  TypeQualifier const &type_qualifier() const { return type_qualifier_; }
+  Class *parent_class() const;
+  TypeRef const &type_ref() const;
+  uint32 offset() const;
+  TypeQualifier const &type_qualifier() const;
 
 private:
-  std::string type_;
+  TypeRef type_ref_;
   uint32 offset_;
   TypeQualifier type_qualifier_;
   Class *class_;
@@ -145,30 +176,46 @@ private:
   void set_parent_class(Class *clazz);
 };
 
+class RFL_EXPORT EnumItem {
+public:
+	EnumItem();
+	EnumItem(long value, char const *id, char const *name);
+	EnumItem(EnumItem const &x);
+	EnumItem &operator=(EnumItem const &x);
+
+  long value() const;
+  void set_value(long value);
+
+  char const *id() const;
+  void set_id(char const *id);
+
+  char const *name() const;
+  void set_name(char const *name);
+
+private:
+  long value_;
+  std::string id_;
+  std::string name_;
+};
+
 class RFL_EXPORT Enum : public Reflected {
 public:
-  struct RFL_EXPORT EnumItem {
-    long value_;
-    std::string id_;
-    std::string name_;
-  };
-public:
-  Enum(std::string const &name,
-       std::string const &type,
+  Enum(char const *name,
+       char const *type,
        PackageFile *pkg_file,
        Annotation const &anno,
        Namespace *ns,
        Class *parent);
 
-  Namespace *enum_namespace() const { return namespace_; }
-  Class *parent_class() const { return parent_class_; }
+  Namespace *enum_namespace() const;
+  Class *parent_class() const;
 
   void AddEnumItem(EnumItem const &item);
   void RemoveEnumItem(EnumItem const &item);
   EnumItem const &GetEnumItemAt(size_t idx) const;
   size_t GetNumEnumItems() const;
 
-  std::string const &type() const { return type_; }
+  char const *type() const;
   PackageFile *package_file() const;
 
 private:
@@ -187,15 +234,14 @@ public:
     kOutput_Kind,
     kInOut_Kind
   };
-  Argument() {}
-  Argument(std::string name,
+  Argument();
+  Argument(char const *name,
            Kind kind,
-           std::string const &type,
-           Annotation const &anno)
-      : Reflected(name, anno), kind_(kind), type_(type) {}
+           char const *type,
+           Annotation const &anno);
 
-  Kind kind() const { return kind_; }
-  std::string const &type() const { return type_; }
+  Kind kind() const;
+  char const *type() const;
 
 private:
   Kind kind_;
@@ -204,11 +250,10 @@ private:
 
 class RFL_EXPORT Method : public Reflected {
 public:
-  Method() {}
-  Method(std::string const &name, Annotation const &anno)
-    : Reflected(name, anno) {}
+  Method();
+  Method(char const *name, Annotation const &anno);
 
-  Class *parent_class() const { return class_; }
+  Class *parent_class() const;
 
   void AddArgument(Argument *arg);
   void RemoveArgument(Argument *arg);
@@ -237,7 +282,7 @@ private:
 
 class RFL_EXPORT Class : public Reflected, public EnumContainer {
 public:
-  Class(std::string const &name,
+  Class(char const *name,
         PackageFile *pkg_file,
         Annotation const &anno,
         Class *super = nullptr,
@@ -245,10 +290,10 @@ public:
         Class **nested = nullptr
         );
 
-  Namespace *class_namespace() const { return namespace_; }
-  Class *parent_class() const { return parent_; }
-  Class *super_class() const { return super_; }
-  std::string const &header_file() const;
+  Namespace *class_namespace() const;
+  Class *parent_class() const;
+  Class *super_class() const;
+  char const *header_file() const;
   PackageFile *package_file() const;
 
   void AddField(Field *prop);
@@ -271,8 +316,8 @@ public:
 
 private:
   friend class Namespace;
-  void set_class_namespace(Namespace *ns) { namespace_ = ns; }
-  void set_parent_class(Class *parent) { parent_ = parent; }
+  void set_class_namespace(Namespace *ns);
+  void set_parent_class(Class *parent);
 
 private:
   Namespace *namespace_;
@@ -286,7 +331,7 @@ private:
 
 class RFL_EXPORT Namespace : public Reflected, public EnumContainer {
 public:
-  Namespace(std::string const &name,
+  Namespace(char const *name,
             Class **classes = nullptr,
             Namespace **namespaces = nullptr);
 
@@ -302,10 +347,10 @@ public:
   size_t GetNumNamespaces() const;
   Namespace *GetNamespaceAt(size_t idx) const;
 
-  Namespace *parent_namespace() const { return parent_namespace_; }
+  Namespace *parent_namespace() const;
 
 private:
-  void set_parent_namespace(Namespace *ns) { parent_namespace_ = ns; }
+  void set_parent_namespace(Namespace *ns);
   Namespace *parent_namespace_;
   Classes classes_;
   Namespaces namespaces_;
@@ -313,9 +358,9 @@ private:
 
 class RFL_EXPORT PackageFile : public EnumContainer {
 public:
-  PackageFile(std::string const &path);
+  PackageFile(char const *path);
 
-  std::string const &source_path() const;
+  char const *source_path() const;
   std::string filename() const;
 
   bool is_dependency() const;
@@ -334,21 +379,21 @@ private:
 
 class RFL_EXPORT Package : public Namespace {
 public:
-  Package(std::string const &name,
-          std::string const &version,
+  Package(char const *name,
+          char const *version,
           Namespace **nested = nullptr);
 
-  void AddImport(std::string const &import);
-  std::string const &GetImportAt(int idx) const;
+  void AddImport(char const *import);
+  char const *GetImportAt(int idx) const;
   int GetImportNum() const;
 
-  void AddLibrary(std::string const &import);
-  std::string const &GetLibraryAt(int idx) const;
+  void AddLibrary(char const *import);
+  char const *GetLibraryAt(int idx) const;
   int GetLibraryNum() const;
 
-  std::string const &version() const { return version_; }
+  char const *version() const;
 
-  PackageFile *GetOrCreatePackageFile(std::string const &path);
+  PackageFile *GetOrCreatePackageFile(char const *path);
 
   void AddPackageFile(PackageFile *pkg_file);
   void RemovePackageFile(PackageFile *pkg_file);

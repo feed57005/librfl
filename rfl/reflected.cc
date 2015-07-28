@@ -25,15 +25,23 @@ Annotation &Annotation::operator=(Annotation const &x) {
   return *this;
 }
 
-void Annotation::AddEntry(std::string const &key, std::string const &value) {
+void Annotation::AddEntry(char const *key, char const *value) {
   entries_.insert(std::make_pair(key, value));
 }
 
-char const *Annotation::GetEntry(std::string const &key) const {
+char const *Annotation::GetEntry(char const *key) const {
   EntryMap::const_iterator it = entries_.find(key);
   if (it != entries_.end())
     return it->second.c_str();
   return nullptr;
+}
+
+char const *Annotation::kind() const {
+  return kind_.c_str();
+}
+
+void Annotation::set_kind(char const *kind) {
+  kind_ = kind;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -71,35 +79,173 @@ TypeQualifier &TypeQualifier::operator=(TypeQualifier const &x) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Reflected::Reflected(std::string const &name) : name_(name) {
+TypeRef::TypeRef()
+    : kind_(kInvalid_Kind),
+      type_name_() {}
+
+TypeRef::~TypeRef() {}
+
+TypeRef::TypeRef(TypeRef const &x) : kind_(x.kind_) {
+	switch (kind_) {
+		case kSystem_Kind:
+			type_name_ = x.type_name_;
+			break;
+		case kEnum_Kind:
+			enum_type_ = x.enum_type_;
+			break;
+		case kClass_Kind:
+			class_type_ = x.class_type_;
+			break;
+		case kInvalid_Kind:
+			break;
+	}
 }
 
-Reflected::Reflected(std::string const &name, Annotation const &anno)
-    : name_(name), annotation_(anno) {
+TypeRef &TypeRef::operator=(TypeRef const &x) {
+	kind_ = x.kind_;
+	switch (kind_) {
+		case kSystem_Kind:
+			type_name_ = x.type_name_;
+			break;
+		case kEnum_Kind:
+			enum_type_ = x.enum_type_;
+			break;
+		case kClass_Kind:
+			class_type_ = x.class_type_;
+			break;
+		case kInvalid_Kind:
+			break;
+	}
+	return *this;
+}
+
+
+TypeRef::Kind TypeRef::kind() const {
+	return kind_;
+}
+
+char const *TypeRef::type_name() const {
+	return type_name_.c_str();
+}
+
+void TypeRef::set_type_name(char const *name) {
+	kind_ = kSystem_Kind;
+	type_name_ = name;
+}
+
+Enum *TypeRef::enum_type() const {
+  return enum_type_;
+}
+
+void TypeRef::set_enum_type(Enum *enm) {
+	kind_ = kEnum_Kind;
+	enum_type_ = enm;
+}
+
+Class *TypeRef::class_type() const {
+	return class_type_;
+}
+
+void TypeRef::set_class_type(Class *klass) {
+	kind_ = kClass_Kind;
+	class_type_ = klass;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Field::Field(std::string const &name,
-             std::string const &type,
+Reflected::Reflected(char const *name) : name_(name) {
+}
+
+Reflected::Reflected(char const *name, Annotation const &anno)
+    : name_(name), annotation_(anno) {
+}
+
+char const *Reflected::name() const {
+  return name_.c_str();
+}
+
+Annotation const &Reflected::annotation() const {
+  return annotation_;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+Field::Field(char const *name,
+             TypeRef const &type,
              uint32 offset,
              TypeQualifier const &type_qualifier,
              Annotation const &anno)
     : Reflected(name, anno),
-      type_(type),
+      type_ref_(type),
       offset_(offset),
       type_qualifier_(type_qualifier),
-      class_(nullptr) {
-}
+      class_(nullptr) {}
 
 void Field::set_parent_class(Class *clazz) {
   class_ = clazz;
 }
 
+Class *Field::parent_class() const {
+  return class_;
+}
+
+TypeRef const &Field::type_ref() const {
+  return type_ref_;
+}
+
+uint32 Field::offset() const {
+  return offset_;
+}
+
+TypeQualifier const &Field::type_qualifier() const {
+  return type_qualifier_;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
-Enum::Enum(std::string const &name,
-           std::string const &type,
+EnumItem::EnumItem() : value_(-1) {}
+
+EnumItem::EnumItem(long value, char const *id, char const *name)
+    : value_(value), id_(id), name_(name) {}
+
+EnumItem::EnumItem(EnumItem const &x)
+    : value_(x.value_), id_(x.id_), name_(x.name_) {}
+
+EnumItem &EnumItem::operator=(EnumItem const &x) {
+  value_ = x.value_;
+  id_ = x.id_;
+  name_ = x.name_;
+  return *this;
+}
+
+long EnumItem::value() const {
+  return value_;
+}
+
+void EnumItem::set_value(long value) {
+  value_ = value;
+}
+
+char const *EnumItem::id() const {
+  return id_.c_str();
+}
+
+void EnumItem::set_id(char const *id) {
+  id_ = id;
+}
+
+char const *EnumItem::name() const {
+  return name_.c_str();
+}
+
+void EnumItem::set_name(char const *name) {
+  name_ = name;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+Enum::Enum(char const *name,
+           char const *type,
            PackageFile *pkg_file,
            Annotation const &anno,
            Namespace *ns,
@@ -119,14 +265,14 @@ void Enum::AddEnumItem(EnumItem const &item) {
 
 void Enum::RemoveEnumItem(EnumItem const &item) {
   for (std::vector<EnumItem>::iterator it = items_.begin(); it != items_.end(); ++it) {
-    if (it->value_ == item.value_) {
+    if (it->value() == item.value()) {
       items_.erase(it);
       return;
     }
   }
 }
 
-Enum::EnumItem const &Enum::GetEnumItemAt(size_t idx) const {
+EnumItem const &Enum::GetEnumItemAt(size_t idx) const {
   return items_[idx];
 }
 
@@ -136,6 +282,18 @@ size_t Enum::GetNumEnumItems() const {
 
 PackageFile *Enum::package_file() const {
   return pkg_file_;
+}
+
+Namespace *Enum::enum_namespace() const {
+  return namespace_;
+}
+
+Class *Enum::parent_class() const {
+  return parent_class_;
+}
+
+char const *Enum::type() const {
+  return type_.c_str();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -156,7 +314,7 @@ void EnumContainer::RemoveEnum(Enum *e) {
 Enum *EnumContainer::FindEnum(char const *enum_name) const {
   std::string const ename(enum_name);
   for (Enum *e : enums_) {
-    if (e->name().compare(ename) == 0)
+    if (ename.compare(e->name()) == 0)
       return e;
   }
   return nullptr;
@@ -171,6 +329,33 @@ Enum *EnumContainer::GetEnumAt(size_t idx) const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+Argument::Argument() {}
+
+Argument::Argument(char const *name,
+                   Kind kind,
+                   char const *type,
+                   Annotation const &anno)
+    : Reflected(name, anno), kind_(kind), type_(type) {}
+
+Argument::Kind Argument::kind() const {
+  return kind_;
+}
+
+char const *Argument::type() const {
+  return type_.c_str();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+Method::Method() {}
+
+Method::Method(char const *name, Annotation const &anno)
+    : Reflected(name, anno) {}
+
+Class *Method::parent_class() const {
+  return class_;
+}
 
 void Method::AddArgument(Argument *arg) {
   arguments_.push_back(arg);
@@ -193,7 +378,7 @@ size_t Method::GetNumArguments() const {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Class::Class(std::string const &name,
+Class::Class(char const *name,
              PackageFile *pkg_file,
              Annotation const &anno,
              Class *super,
@@ -247,8 +432,9 @@ Field *Class::GetFieldAt(size_t idx) const {
 }
 
 Field *Class::FindField(char const *name) const {
+  std::string const name_str(name);
   for (Field *prop : fields_) {
-    if (prop->name().compare(std::string(name)) == 0) {
+    if (name_str.compare(prop->name()) == 0) {
       return prop;
     }
   }
@@ -276,7 +462,7 @@ Method *Class::GetMethodAt(size_t idx) const {
 Method *Class::FindMethod(char const *name) const {
   std::string const mname(name);
   for (Method *m : methods_) {
-    if (m->name().compare(mname) == 0)
+    if (mname.compare(m->name()) == 0)
       return m;
   }
   return nullptr;
@@ -296,8 +482,9 @@ void Class::RemoveClass(Class *klass) {
 }
 
 Class *Class::FindClass(char const *class_name) const {
+  std::string const class_str(class_name);
   for (Class *klass : classes_) {
-    if (klass->name().compare(std::string(class_name)) == 0) {
+    if (class_str.compare(klass->name()) == 0) {
       return klass;
     }
   }
@@ -312,16 +499,37 @@ Class *Class::GetClassAt(size_t idx) const {
   return classes_[idx];
 }
 
-std::string const &Class::header_file() const {
+char const *Class::header_file() const {
   return pkg_file_->source_path();
 }
 
 PackageFile *Class::package_file() const {
   return pkg_file_;
 }
+
+Namespace *Class::class_namespace() const {
+  return namespace_;
+}
+
+Class *Class::parent_class() const {
+  return parent_;
+}
+
+Class *Class::super_class() const {
+  return super_;
+}
+
+void Class::set_class_namespace(Namespace *ns) {
+  namespace_ = ns;
+}
+
+void Class::set_parent_class(Class *parent) {
+  parent_ = parent;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
-Namespace::Namespace(std::string const &name,
+Namespace::Namespace(char const *name,
                      Class **classes,
                      Namespace **namespaces)
     : Reflected(name), parent_namespace_(nullptr) {
@@ -355,8 +563,9 @@ void Namespace::RemoveClass(Class *klass) {
 }
 
 Class *Namespace::FindClass(char const *class_name) const {
+  std::string const class_str(class_name);
   for (Class *klass : classes_) {
-    if (klass->name().compare(std::string(class_name)) == 0) {
+    if (class_str.compare(klass->name()) == 0) {
       return klass;
     }
   }
@@ -384,8 +593,9 @@ void Namespace::RemoveNamespace(Namespace *ns) {
 }
 
 Namespace *Namespace::FindNamespace(char const *name) const {
+  std::string const name_str(name);
   for (Namespace *ns : namespaces_) {
-    if (ns->name().compare(std::string(name)) == 0)
+    if (name_str.compare(ns->name()) == 0)
       return ns;
   }
   return nullptr;
@@ -399,14 +609,21 @@ Namespace *Namespace::GetNamespaceAt(size_t idx) const {
   return namespaces_[idx];
 }
 
+Namespace *Namespace::parent_namespace() const {
+  return parent_namespace_;
+}
+
+void Namespace::set_parent_namespace(Namespace *ns) {
+  parent_namespace_ = ns;
+}
 ////////////////////////////////////////////////////////////////////////////////
 
-PackageFile::PackageFile(std::string const &path)
+PackageFile::PackageFile(char const *path)
     : source_path_(path), is_dependency_(true) {
 }
 
-std::string const &PackageFile::source_path() const {
-  return source_path_;
+char const *PackageFile::source_path() const {
+  return source_path_.c_str();
 }
 
 std::string PackageFile::filename() const {
@@ -442,42 +659,42 @@ void PackageFile::set_is_dependecy(bool is) {
   is_dependency_ = is;
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
-Package::Package(std::string const &name,
-                 std::string const &version,
+Package::Package(char const *name,
+                 char const *version,
                  Namespace **nested)
     : Namespace(name, nullptr, nested), version_(version) {
 }
 
-void Package::AddImport(std::string const &import) {
+void Package::AddImport(char const *import) {
   imports_.push_back(import);
 }
 
-std::string const &Package::GetImportAt(int idx) const {
-  return imports_[idx];
+char const *Package::GetImportAt(int idx) const {
+  return imports_[idx].c_str();
 }
 
 int Package::GetImportNum() const {
   return (int) imports_.size();
 }
 
-void Package::AddLibrary(std::string const &import) {
+void Package::AddLibrary(char const *import) {
   libs_.push_back(import);
 }
 
-std::string const &Package::GetLibraryAt(int idx) const {
-  return libs_[idx];
+char const *Package::GetLibraryAt(int idx) const {
+  return libs_[idx].c_str();
 }
 
 int Package::GetLibraryNum() const {
   return (int) libs_.size();
 }
 
-PackageFile *Package::GetOrCreatePackageFile(std::string const &path) {
+PackageFile *Package::GetOrCreatePackageFile(char const *path) {
+  std::string const path_str(path);
   for (PackageFile *file : files_) {
-    if (file->source_path().compare(path) == 0)
+    if (path_str.compare(file->source_path()) == 0)
       return file;
   }
   PackageFile *ret = new PackageFile(path);
@@ -501,6 +718,10 @@ size_t Package::GetNumPackageFiles() const {
 
 PackageFile *Package::GetPackageFileAt(size_t idx) const {
   return files_[idx];
+}
+
+char const *Package::version() const {
+  return version_.c_str();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

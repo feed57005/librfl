@@ -39,7 +39,7 @@ macro (add_module_rfl mid version)
     DEPENDS ${input_files} ${RFL_GENERATOR}
     COMMAND ${LIBRFL_RFLSCAN_EXE} -p ${CMAKE_BINARY_DIR}
       -basedir ${CMAKE_SOURCE_DIR}
-      -output ${mid}
+      -output-dir ${mid}
       -pkg-name ${mid} -pkg-version=${version}
       ${imports}
       -G $<TARGET_FILE:${RFL_GENERATOR}>

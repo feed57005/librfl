@@ -5,7 +5,7 @@
 #ifndef __LIBRFL_TYPES_H__
 #define __LIBRFL_TYPES_H__
 
-#include <cstdint>
+#include <stdint.h>
 
 namespace rfl {
 

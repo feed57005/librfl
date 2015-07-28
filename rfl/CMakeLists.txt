@@ -1,9 +1,15 @@
+find_package (LLVM REQUIRED COMPONENTS "support")
+include_directories (${LLVM_INCLUDE_DIRS})
+link_directories (${LLVM_LIBRARY_DIRS})
+
+set (CMAKE_CXX_FLAGS "-fno-rtti -fno-exceptions ${LLVM_CXX_FLAGS} -Wno-strict-aliasing")
 set (rfl_TARGET_TYPE SHARED)
 set (rfl_PUBLIC_HEADERS
   annotations.h
   any_var.h
   dictionary.h
   generator.h
+  generator_util.h
   native_library.h
   reflected.h
   rfl_export.h
@@ -18,6 +24,7 @@ set (rfl_SOURCES
   reflected.cc
   )
 set (rfl_DEFINES RFL_IMPLEMENTATION)
+set (rfl_PRIV_DEPS ${LLVM_LIBRARIES})
 
 if (OS_LINUX)
   set (rfl_LIBS dl)

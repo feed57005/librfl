@@ -32,7 +32,7 @@ struct AnnoInserter {
   AnnoInserter(Annotation *anno) : anno_(anno) {}
 
   void operator()(std::string const &key, std::string const &value) const {
-    anno_->AddEntry(key,value);
+    anno_->AddEntry(key.c_str(), value.c_str());
   }
 
   Annotation *anno_;
@@ -81,7 +81,7 @@ static std::string PathRelativeToBaseDir(SourceLocation const &source_loc,
 
   StringRef path_str = full_path.str();
   if (path_str.size() > basedir.size() && path_str.startswith(basedir)) {
-    path_str = path_str.substr(basedir.size()+1, path_str.size());
+    path_str = path_str.substr(basedir.size(), path_str.size());
   }
   return path_str.str();
 }
@@ -213,7 +213,7 @@ Namespace *ASTScanner::GetOrCreateNamespaceForRecord(Decl *D) {
       os.flush();
       Namespace *ns = current_ns->FindNamespace(ns_name.c_str());
       if (!ns) {
-        ns = new Namespace(os.str());
+        ns = new Namespace(os.str().c_str());
         current_ns->AddNamespace(ns);
       }
       current_ns = ns;
@@ -253,9 +253,10 @@ bool ASTScanner::_TraverseTypedefDecl(TypedefDecl *D) {
   SourceLocation source_loc = D->getSourceRange().getBegin();
   std::string header_file =
       PathRelativeToBaseDir(source_loc, src_manager(), basedir());
-  PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
+  PackageFile *pkg_file =
+      package()->GetOrCreatePackageFile(header_file.c_str());
 
-  Class *klass = new Class(name, pkg_file, anno);
+  Class *klass = new Class(name.c_str(), pkg_file, anno);
   ns->AddClass(klass);
 
   return true;
@@ -310,7 +311,7 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
       // nested classes are also available in bases, so check
       // if we didn't traverse too far
       if (parent) {
-        if (parent->name().compare(record_name) == 0)
+        if (record_name.compare(parent->name()) == 0)
           break;
       }
 
@@ -328,9 +329,10 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
   std::string header_file =
       PathRelativeToBaseDir(source_loc, src_manager(), basedir());
 
-  PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
+  PackageFile *pkg_file =
+      package()->GetOrCreatePackageFile(header_file.c_str());
 
-  Class *klass = new Class(name, pkg_file, anno, super);
+  Class *klass = new Class(name.c_str(), pkg_file, anno, super);
   if (!parent) {
     ns->AddClass(klass);
   }
@@ -367,6 +369,7 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
 
   std::string type_name;
   TypeQualifier tq;
+	TypeRef tr;
   if (D->getTypeSourceInfo() &&
       !D->getTypeSourceInfo()->getTypeLoc().isNull()) {
     QualType qt = D->getType();
@@ -404,7 +407,6 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
         llvm::raw_string_ostream os(type_name);
         RD->printQualifiedName(os);
         os.flush();
-        outs() << "public class " << type_name << "\n";
       }
     } else if (EnumType::classof(t)) {
       EnumDecl *ED = t->getAs<EnumType>()->getDecl();
@@ -412,8 +414,18 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
         llvm::raw_string_ostream os(type_name);
         ED->printQualifiedName(os);
         os.flush();
-        outs() << "public enum " << type_name << "\n";
-      }
+      } else {
+				Namespace *ns = GetOrCreateNamespaceForRecord(ED);
+				Enum *enm = ns->FindEnum(ED->getName().data());
+				if (enm == nullptr) {
+					errs() << "Could not find enum ";
+					ED->printQualifiedName(errs());
+					errs() << "\n";
+					errs().flush();
+				} else {
+					tr.set_enum_type(enm);
+				}
+			}
     }
 
     if (type_name.empty()) {
@@ -422,6 +434,8 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
       policy.SuppressScope = true;
       type_name = D->getType().getAsString(policy);
     }
+		if (tr.kind() == TypeRef::kInvalid_Kind)
+			tr.set_type_name(type_name.c_str());
   } else {
     errs() << "Error missing TypeSourceInfo "
            << D->getType().getLocalUnqualifiedType().getAsString() << "\n";
@@ -439,7 +453,8 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
   ASTRecordLayout const &layout = context_->getASTRecordLayout(D->getParent());
   uint32 offset = (uint32)layout.getFieldOffset(D->getFieldIndex());
 
-  klass->AddField(new Field(field_name, type_name, offset, tq, anno));
+  klass->AddField(
+      new Field(field_name.c_str(), tr, offset, tq, anno));
   return true;
 }
 
@@ -448,7 +463,6 @@ bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
   if (!ReadAnnotation(D, &anno)) {
     return true;
   }
-  LogDecl(D);
 
   std::string name = D->getQualifiedNameAsString();
   name = D->getName().str();
@@ -466,21 +480,24 @@ bool ASTScanner::_TraverseEnumDecl(EnumDecl *D) {
       return true;
   }
 
+  LogDecl(D);
+
   SourceLocation source_loc = D->getSourceRange().getBegin();
   std::string header_file = PathRelativeToBaseDir(source_loc, src_manager(), basedir());
 
-  PackageFile *pkg_file = package()->GetOrCreatePackageFile(header_file);
-  Enum *e = new Enum(name, type, pkg_file, anno, ns, parent);
+  PackageFile *pkg_file =
+      package()->GetOrCreatePackageFile(header_file.c_str());
+  Enum *e = new Enum(name.c_str(), type.c_str(), pkg_file, anno, ns, parent);
 
   // collect enum items
   for (EnumDecl::enumerator_iterator it = D->enumerator_begin();
        it != D->enumerator_end(); ++it) {
     EnumConstantDecl *e_item = *it;
-    Enum::EnumItem item;
-    item.id_ = e_item->getNameAsString();
+    EnumItem item;
+    item.set_id(e_item->getNameAsString().c_str());
     llvm::APSInt const &value = e_item->getInitVal();
-    item.value_ = (long) value.getSExtValue();
-    item.name_ = anno.GetEntry(item.id_); // XXX check
+    item.set_value((long) value.getSExtValue());
+    item.set_name(anno.GetEntry(item.id())); // XXX check
     e->AddEnumItem(item);
   }
   if (!parent) {
@@ -510,11 +527,11 @@ bool ASTScanner::_TraverseMethodDecl(CXXMethodDecl *D) {
       D->getReturnType().getLocalUnqualifiedType().getAsString();
 
   Class *klass = class_queue_.front();
-  Method *method = new Method(name, anno);
+  Method *method = new Method(name.c_str(), anno);
   // TODO check that method does not exists, handle overloads
   klass->AddMethod(method);
   method->AddArgument(
-      new Argument("return", Argument::kReturn_Kind, ret_type, Annotation()));
+      new Argument("return", Argument::kReturn_Kind, ret_type.c_str(), Annotation()));
 
   for (CXXMethodDecl::param_iterator it = D->param_begin();
        it != D->param_end(); ++it) {
@@ -551,7 +568,8 @@ bool ASTScanner::_TraverseMethodDecl(CXXMethodDecl *D) {
       return true;
     }
 
-    Argument *arg = new Argument(param_name, kind, param_type, param_anno);
+    Argument *arg =
+        new Argument(param_name.data(), kind, param_type.c_str(), param_anno);
     method->AddArgument(arg);
   }
 

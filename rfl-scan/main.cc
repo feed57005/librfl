@@ -12,6 +12,8 @@
 #include "llvm/Option/OptTable.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/LineIterator.h"
 #include "llvm/ADT/SmallString.h"
 
 #include "rfl/reflected.h"
@@ -48,9 +50,13 @@ static cl::list<std::string> Libs("l",
                                   cl::desc("Link library"),
                                   cl::cat(RflScanCategory));
 
-static cl::opt<std::string> OutputName("output",
-                                       cl::desc("Output file name prefix"),
+static cl::opt<std::string> OutputPath("output-dir",
+                                       cl::desc("Output directory"),
                                        cl::cat(RflScanCategory));
+static cl::opt<std::string> OutputFile("o",
+                                       cl::desc("Output file with list of generated files"),
+                                       cl::cat(RflScanCategory));
+
 static cl::opt<std::string> PackageName("pkg-name",
                                         cl::desc("Package name"),
                                         cl::cat(RflScanCategory));
@@ -59,6 +65,9 @@ static cl::opt<std::string> PackageVersion("pkg-version",
                                            cl::cat(RflScanCategory));
 static cl::opt<std::string> Basedir("basedir",
                                     cl::desc("Package basedir"),
+                                    cl::cat(RflScanCategory));
+static cl::opt<std::string> InputFile("input",
+                                    cl::desc("file with inputs"),
                                     cl::cat(RflScanCategory));
 
 static cl::opt<bool> GeneratePlugin("plugin",
@@ -73,7 +82,7 @@ static std::string StripBasedir(std::string const &filename,
                                 std::string const &basedir) {
   size_t basedir_pos = filename.find(basedir);
   if (basedir_pos != std::string::npos && basedir_pos == 0) {
-    return filename.substr(basedir.length() + 1,
+    return filename.substr(basedir.length(),
                            filename.length() - basedir.length());
   }
   return filename;
@@ -95,8 +104,23 @@ int main(int argc, const char **argv) {
 
   CommonOptionsParser options_parser(argc, argv, RflScanCategory);
 
-  std::vector<std::string> source_path_list =
-      options_parser.getSourcePathList();
+  std::vector<std::string> source_path_list;
+  if (InputFile.getNumOccurrences() == 0) {
+    source_path_list =
+        options_parser.getSourcePathList();
+  } else {
+    llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> input_buffer =
+        llvm::MemoryBuffer::getFile(InputFile.getValue());
+    if (std::error_code result = input_buffer.getError()) {
+      llvm::errs() << "Error while opening JSON database: " + result.message();
+      return 1;
+    }
+    llvm::line_iterator line_it(*input_buffer.get());
+    while (!line_it.is_at_end()) {
+      source_path_list.push_back(*line_it);
+      ++line_it;
+    }
+  }
   CompilationDatabase &default_cdb = options_parser.getCompilations();
   rfl::scan::ScanCompilationDatabase cdb(default_cdb, source_path_list);
   ClangTool tool(cdb, source_path_list);
@@ -107,15 +131,8 @@ int main(int argc, const char **argv) {
 
   CommandLineArguments extra_args;
 
-  std::string pkg_upper = PackageName.getValue();
-  std::transform(pkg_upper.begin(), pkg_upper.end(), pkg_upper.begin(), ::toupper);
-
-  // TODO why is this here?
-  extra_args.push_back(
-      Twine("-D")
-          .concat(Twine(pkg_upper).concat("_IMPLEMENTATION"))
-          .str());
-
+  extra_args.push_back("-resource-dir");
+  extra_args.push_back(resource_dir.str());
   extra_args.push_back("-D__RFL_SCAN__");
   extra_args.push_back("-Wno-unused-local-typedef"); // TODO hack
 
@@ -136,8 +153,14 @@ int main(int argc, const char **argv) {
   tool.appendArgumentsAdjuster(
      getInsertArgumentAdjuster(extra_args, ArgumentInsertPosition::BEGIN));
 
-  std::string const &output_name = OutputName.getValue();
-  std::string const &basedir = Basedir.getValue();
+  std::string output_path = OutputPath.getValue();
+  if (!llvm::sys::path::is_separator(output_path[output_path.length()-1])) {
+    output_path += llvm::sys::path::get_separator();
+  }
+  std::string basedir = Basedir.getValue();
+  if (!llvm::sys::path::is_separator(basedir[basedir.length()-1])) {
+    basedir += llvm::sys::path::get_separator();
+  }
   std::string const &pkg_name = PackageName.getValue();
   std::string const &pkg_version = PackageVersion.getValue();
   std::unique_ptr<rfl::Package> package(new rfl::Package(pkg_name.c_str(), pkg_version.c_str()));
@@ -146,20 +169,24 @@ int main(int argc, const char **argv) {
   for (std::vector<std::string>::iterator it = Imports.begin(),
                                           e = Imports.end();
        it != e; ++it) {
-    llvm::outs() << "importing " << *it << "\n";
-    package->AddImport(*it);
+    if (Verbose.getValue() > 1) {
+      llvm::outs() << "importing " << *it << "\n";
+    }
+    package->AddImport((*it).c_str());
   }
+  llvm::outs().flush();
 
   // handle libs
   for (std::vector<std::string>::iterator it = Libs.begin(), e = Libs.end();
        it != e; ++it) {
-    package->AddLibrary(*it);
+    package->AddLibrary((*it).c_str());
   }
 
   // handle sources
   for (std::string const &src : source_path_list) {
-    std::string rel_src = StripBasedir(src, Basedir.getValue());
-    rfl::PackageFile *pkg_file = package->GetOrCreatePackageFile(rel_src);
+    std::string rel_src = StripBasedir(src, basedir);
+    rfl::PackageFile *pkg_file =
+        package->GetOrCreatePackageFile(rel_src.c_str());
     pkg_file->set_is_dependecy(false);
   }
 
@@ -177,7 +204,7 @@ int main(int argc, const char **argv) {
     return 1;
   }
   for (std::string const &generator : Generators) {
-    llvm::outs() << "Using generator " << generator;
+    llvm::outs() << "Using generator " << generator << "\n";
     std::string err;
     rfl::NativeLibrary lib = rfl::LoadNativeLibrary(generator.c_str(), &err);
     if (!lib) {
@@ -190,15 +217,16 @@ int main(int argc, const char **argv) {
     if (create_gen != nullptr) {
       rfl::Generator *gen = create_gen();
       if (gen == nullptr) {
-        llvm::errs() << "CreateGenerator returned null";
+        llvm::errs() << "CreateGenerator() returned null\n";
         continue;
       }
-      gen->set_output_path(output_name.c_str());
+      gen->set_output_path(output_path.c_str());
+      gen->set_output_file(OutputFile.getValue().c_str());
       gen->set_generate_plugin(GeneratePlugin);
       gen->Generate(package.get());
       delete gen;
     } else {
-      llvm::errs() << "Could not find symbol GeneratePackage";
+      llvm::errs() << "Could not find symbol 'CreateGenerator'\n";
       continue;
     }
   }

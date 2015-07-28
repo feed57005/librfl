@@ -7,7 +7,7 @@
 
 #include "rfl/rfl_export.h"
 
-#include <cstddef>
+#include <stddef.h>
 #include <string>
 
 #ifdef RFL_TYPE_INFO_FULL_COMPARE

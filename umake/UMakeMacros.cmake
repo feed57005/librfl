@@ -131,7 +131,7 @@ function (add_module mid)
 		endforeach ()
 	endif ()
   #message ("${mid} - ${lib_deps}")
-  if (lib_deps AND NOT target_type STREQUAL "OBJECT"
+  if ((lib_deps OR lib_priv_deps) AND NOT target_type STREQUAL "OBJECT"
        AND NOT target_type STREQUAL "MODULE")
     target_link_libraries (${mid}
       LINK_PUBLIC ${lib_deps}

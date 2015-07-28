@@ -14,17 +14,25 @@ namespace rfl {
 class RFL_EXPORT Generator {
 public:
   Generator();
-  virtual ~Generator() {}
-
-  void set_output_path(char const *out_path) {
-    output_path_ = out_path;
-  }
-
-  void set_generate_plugin(bool generate) {
-    generate_plugin_ = generate;
-  }
+  virtual ~Generator();
 
   virtual int Generate(Package const *pkg);
+
+  char const *output_path() const;
+  void set_output_path(char const *out_path);
+
+  char const *output_file() const;
+  void set_output_file(char const *out_file);
+
+  void set_generate_plugin(bool generate);
+  bool generate_plugin() const;
+
+  size_t GetNumGeneratedFiles() const;
+  char const *GetGeneratedFileAt(size_t idx) const;
+  void AddGeneratedFile(char const *file);
+  void RemoveGeneratedFile(char const *file);
+
+  static bool WriteToFile(char const *file, char const *data);
 
 protected:
   virtual int TraverseFile(PackageFile const *file);
@@ -41,18 +49,11 @@ protected:
   virtual int BeginNamespace(Namespace const *ns) = 0;
   virtual int EndNamespace(Namespace const *ns) = 0;
 
-  std::string FilenameForPackageFile(PackageFile const *file,
-                                     bool full,
-                                     bool header) const;
-  static std::string HeaderGuard(std::string const &name, bool begin);
-  // TODO fixme should check that path exist
-  static bool WriteStreamToFile(std::string const &file,
-                                std::stringstream const &content);
-protected:
+private:
+  std::vector<std::string> generated_files_;
   std::string output_path_;
+  std::string output_file_;
   bool generate_plugin_;
-  std::string h_file_suffix_;
-  std::string src_file_suffix_;
 };
 
 } // namespace rfl
