@@ -527,6 +527,14 @@ void Class::set_parent_class(Class *parent) {
   parent_ = parent;
 }
 
+uint32 Class::order() const {
+  return order_;
+}
+
+void Class::set_order(uint32 order) {
+  order_ = order;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 Namespace::Namespace(char const *name,

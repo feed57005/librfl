@@ -25,16 +25,20 @@ public:
   ASTScannerContext(Package *pkg,
                     std::string const &basedir,
                     unsigned verbose = 0)
-      : package_(pkg), basedir_(basedir), verbose_(verbose) {}
+      : package_(pkg), basedir_(basedir), verbose_(verbose), class_count_(0) {}
 
   Package *package() const { return package_; }
   std::string const &basedir() const { return basedir_; }
   unsigned verbose() const { return verbose_; }
 
+  unsigned class_count() const { return class_count_; }
+  void set_class_count(unsigned count) { class_count_ = count; }
+
 private:
   Package *package_;
   std::string basedir_;
   unsigned verbose_;
+  unsigned class_count_;
 };
 
 class ASTScanner : public ASTConsumer, public RecursiveASTVisitor<ASTScanner> {
@@ -71,6 +75,9 @@ private:
   std::string const &basedir() const { return scanner_context_->basedir(); }
   unsigned verbose() const { return scanner_context_->verbose(); }
   SourceManager const &src_manager() const;
+
+  unsigned class_count() const { return scanner_context_->class_count(); }
+  void set_class_count(unsigned count) { scanner_context_->set_class_count(count); }
 
 private:
   ASTScannerContext *scanner_context_;
