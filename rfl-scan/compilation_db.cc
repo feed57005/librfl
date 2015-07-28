@@ -18,6 +18,26 @@ ScanCompilationDatabase::~ScanCompilationDatabase() {
 char const *const kHeaderExtensions[] = {".h", ".hh", ".hpp", ".h++"};
 char const *const kSourceExtensions[] = {".cc", ".cpp", ".cxx", ".c++", ".c"};
 
+void ScanCompilationDatabase::cleanupCommands(std::vector<CompileCommand> &cmds,
+                                              StringRef const &filename) const {
+	// go through all commandlines and replace -c file with ours
+  for (CompileCommand &cmd : cmds) {
+		for (std::vector<std::string>::iterator it = cmd.CommandLine.begin();
+				 it != cmd.CommandLine.end();
+				 ) {
+			if (!it->empty() && it->compare("-c") == 0) {
+				++it;
+				it->assign(filename);
+			} else {
+				++it;
+			}
+		}
+		// since this is header we need to specify that's a c++ header
+		cmd.CommandLine.push_back("-x");
+		cmd.CommandLine.push_back("c++");
+	}
+}
+
 std::vector<CompileCommand> ScanCompilationDatabase::getCompileCommands(
     StringRef file) const {
   std::vector<CompileCommand> result = compilation_db_.getCompileCommands(file);
@@ -30,22 +50,30 @@ std::vector<CompileCommand> ScanCompilationDatabase::getCompileCommands(
          it != hdr_exts.end();
          ++it) {
       if (ext.compare(*it) == 0) {
+				// header extensions match, so try to replace it with source ext.
         for (ArrayRef<char const *>::const_iterator cit = src_exts.begin();
              cit != src_exts.end();
              ++cit) {
           SmallString<1024> src_file(file);
           sys::path::replace_extension(src_file, *cit);
           result = compilation_db_.getCompileCommands(src_file);
-          if (result.size())
+          if (result.size()) {
+						cleanupCommands(result,file);
             return result;
+					}
         }
 				break;
       }
     }
+	llvm::outs() << "No luck for: " << file << "\n";
+		llvm::outs().flush();
 		// nothing found, try all other files
 		for (std::string const &src : source_files_) {
+			if (src.compare(file) == 0)
+				continue;
 			result = getCompileCommands(src);
 			if (!result.empty())
+				cleanupCommands(result,file);
 				return result;
 		}
   }

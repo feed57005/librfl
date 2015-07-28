@@ -25,6 +25,7 @@ public:
   virtual std::vector<CompileCommand> getAllCompileCommands() const;
 
 private:
+	void cleanupCommands(std::vector<CompileCommand> &cmds, StringRef const &filename) const;
   CompilationDatabase &compilation_db_;
   std::vector<std::string> source_files_;
 };
