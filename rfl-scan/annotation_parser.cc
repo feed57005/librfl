@@ -9,6 +9,42 @@
 namespace rfl {
 namespace scan {
 
+namespace {
+
+std::string unescape(const std::string &s) {
+  std::string res;
+  std::string::const_iterator it = s.begin();
+  while (it != s.end()) {
+    char c = *it++;
+    if (c == '\\' && it != s.end()) {
+      switch (*it++) {
+        case '\\':
+          c = '\\';
+          break;
+        case 'n':
+          c = '\n';
+          break;
+        case 't':
+          c = '\t';
+          break;
+        case '"':
+          c = '"';
+          break;
+        // all other escapes
+        default:
+          // invalid escape sequence - skip it. alternatively you can copy it as
+          // is, throw an exception...
+          continue;
+      }
+    }
+    res += c;
+  }
+
+  return res;
+}
+
+}  // namespace
+
 std::unique_ptr<AnnotationParser> AnnotationParser::loadFromFile(
     StringRef file_path,
     std::string &error_msg) {
@@ -61,7 +97,11 @@ bool AnnotationParser::Parse(std::string &err_msg) {
       key = t.range_;
     } else if (t.kind_ != kAssign_Token && t.kind_ != kComma_Token) {
       //outs() << key << ": " << t.range_ << " " << t.kind_ << "\n";
-      value_map_[key] = t.range_.str();
+      if (t.kind_ == kString_Token) {
+        value_map_[key] = unescape(t.range_.str());
+      } else {
+        value_map_[key] = t.range_.str();
+      }
     }
     i++;
   }

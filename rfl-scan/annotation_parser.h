@@ -33,19 +33,10 @@ public:
 
   char const *kind() const;
 
-
   template <class E>
   void Enumerate(E const &inserter) const {
-    StringRef key;
-    size_t i = 3;
-    while (i < tokens_.size() -1) {
-      Token const &t = tokens_[i];
-      if (t.kind_ == kSymbol_Token) {
-        key = t.range_;
-      } else if (t.kind_ != kAssign_Token && t.kind_ != kComma_Token) {
-        inserter(key.str(), t.range_.str());
-      }
-      i++;
+    for (StringMap<std::string>::MapEntryTy const &entry : value_map_) {
+        inserter(entry.getKey().str(), entry.getValue());
     }
   }
 
