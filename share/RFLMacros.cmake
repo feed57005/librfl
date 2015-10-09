@@ -1,7 +1,7 @@
 # Adds new module with reflected sources.
 # Reflected files are passed with <mid>_RFL_SOURCES variable
 macro (add_module_rfl mid version)
-  set (working_dir ${CMAKE_CURRENT_BINARY_DIR}/${mid})
+  set (working_dir ${CMAKE_CURRENT_BINARY_DIR})
   file(MAKE_DIRECTORY ${working_dir})
 
   set (input_files)
@@ -54,15 +54,15 @@ macro (add_module_rfl mid version)
   set (${mid}_rfl_SOURCES ${output_files})
   set (${mid}_rfl_TARGET_TYPE STATIC)
   set (${mid}_rfl_DEPS ${${mid}_DEPS})
-  set (${mid}_rfl_INCLUDE_DIRS ${working_dir})
+  set (${mid}_rfl_INCLUDE_DIRS ${working_dir}/${mid})
 
   add_module (${mid}_rfl)
 
-  set (${mid}_RFL_INCLUDE_DIR ${working_dir} CACHE INTERNAL "" FORCE)
+  set (${mid}_RFL_INCLUDE_DIR ${working_dir}/${mid} CACHE INTERNAL "" FORCE)
 
   # add to include dirs so that sources can use reflected headers
   # and rfl module as dependcy
-  list (APPEND ${mid}_INCLUDE_DIRS ${working_dir})
+  list (APPEND ${mid}_INCLUDE_DIRS ${working_dir}/${mid})
   list (APPEND ${mid}_DEPS ${mid}_rfl)
 
   add_module (${mid})

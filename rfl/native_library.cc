@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "rfl/native_library.h"
+#include <iostream>
 
 #if OS_POSIX
 #include <dlfcn.h>
@@ -24,7 +25,11 @@ void UnloadNativeLibrary(NativeLibrary nl) {
 }
 
 void *GetFunctionPointerFromNativeLibrary(NativeLibrary nl, char const *func) {
-  return dlsym(nl, func);
+  void *ret = dlsym(nl, func);
+  if (!ret) {
+    std::cerr << dlerror() << std::endl;
+  }
+  return ret;
 }
 
 #endif

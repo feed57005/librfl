@@ -163,6 +163,11 @@ int main(int argc, const char **argv) {
   }
   std::string const &pkg_name = PackageName.getValue();
   std::string const &pkg_version = PackageVersion.getValue();
+  if (Verbose.getValue() > 1) {
+    llvm::outs() << "output path: " << output_path << "\n"
+      << "basedir: " << basedir << "\n";
+    llvm::outs().flush();
+  }
   std::unique_ptr<rfl::Package> package(new rfl::Package(pkg_name.c_str(), pkg_version.c_str()));
 
   // handle imports
@@ -205,10 +210,13 @@ int main(int argc, const char **argv) {
   }
   for (std::string const &generator : Generators) {
     llvm::outs() << "Using generator " << generator << "\n";
+    llvm::outs().flush();
     std::string err;
     rfl::NativeLibrary lib = rfl::LoadNativeLibrary(generator.c_str(), &err);
     if (!lib) {
-      llvm::errs() << err;
+      llvm::errs() << err << "\n";
+      llvm::outs().flush();
+      ret = 1;
       continue;
     }
     CreateGenerator create_gen =
@@ -218,6 +226,8 @@ int main(int argc, const char **argv) {
       rfl::Generator *gen = create_gen();
       if (gen == nullptr) {
         llvm::errs() << "CreateGenerator() returned null\n";
+        llvm::errs().flush();
+        ret = 1;
         continue;
       }
       gen->set_output_path(output_path.c_str());
@@ -227,6 +237,8 @@ int main(int argc, const char **argv) {
       delete gen;
     } else {
       llvm::errs() << "Could not find symbol 'CreateGenerator'\n";
+      llvm::errs().flush();
+      ret = 1;
       continue;
     }
   }
