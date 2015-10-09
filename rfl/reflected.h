@@ -14,11 +14,6 @@
 #include <vector>
 #include <map>
 
-// non copyable
-// string constants
-// perfect hashes
-// ? dynamic and static variants
-
 namespace rfl {
 
 class Namespace;

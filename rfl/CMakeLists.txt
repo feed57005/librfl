@@ -6,19 +6,15 @@ set (CMAKE_CXX_FLAGS "-fno-rtti -fno-exceptions ${LLVM_CXX_FLAGS} -Wno-strict-al
 set (rfl_TARGET_TYPE SHARED)
 set (rfl_PUBLIC_HEADERS
   annotations.h
-  any_var.h
-  dictionary.h
   generator.h
   generator_util.h
   native_library.h
   reflected.h
   rfl_export.h
-  type_info.h
   types.h
   )
 set (rfl_SOURCES
   ${rfl_PUBLIC_HEADERS}
-  dictionary.cc
   generator.cc
   native_library.cc
   reflected.cc
