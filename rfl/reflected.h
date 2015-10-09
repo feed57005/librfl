@@ -45,7 +45,10 @@ typedef std::vector<PackageFile *> PackageFiles;
 class Package;
 
 class RFL_EXPORT Annotation {
+  typedef std::map<std::string, std::string> EntryMap;
 public:
+  typedef EntryMap::value_type Entry;
+
   Annotation();
 
   Annotation(Annotation const &x);
@@ -54,16 +57,39 @@ public:
   void AddEntry(char const *key, char const *value);
   char const *GetEntry(char const *key) const;
 
+  template <class T>
+  void EnumerateEntries(T &enumerator) const {
+    for (Entry const &entry : entries_) {
+      enumerator(entry);
+    }
+  }
+
   char const *kind() const;
   void set_kind(char const *kind);
 
 private:
   std::string kind_;
-
-  typedef std::map<std::string, std::string> EntryMap;
   EntryMap entries_;
 };
 
+template <class T>
+class AnnotationEntryFilter {
+public:
+  AnnotationEntryFilter(T &enumerator, std::string const &filter)
+      : enumerator_(enumerator), filter_(filter) {}
+
+  void operator()(Annotation::Entry const &e) {
+    if (e.first.find(filter_, 0) != std::string::npos) {
+      enumerator_(e);
+    }
+  }
+
+private:
+  T &enumerator_;
+  std::string const filter_;
+};
+
+// TODO source file
 class RFL_EXPORT TypeRef {
 public:
 	enum Kind {
