@@ -535,6 +535,14 @@ void Class::set_order(uint32 order) {
   order_ = order;
 }
 
+uint32 Class::base_class_offset() const {
+  return base_class_offset_;
+}
+
+void Class::set_base_class_offset(uint32 offset) {
+  base_class_offset_ = offset;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 Namespace::Namespace(char const *name,

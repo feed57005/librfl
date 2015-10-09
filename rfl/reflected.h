@@ -343,6 +343,9 @@ public:
   uint32 order() const;
   void set_order(uint32 order);
 
+  uint32 base_class_offset() const;
+  void set_base_class_offset(uint32 offset);
+
 private:
   friend class Namespace;
   void set_class_namespace(Namespace *ns);
@@ -357,6 +360,7 @@ private:
   Methods methods_;
   PackageFile *pkg_file_;
   uint32 order_;
+  uint32 base_class_offset_;
 };
 
 class RFL_EXPORT Namespace : public Reflected, public EnumContainer {

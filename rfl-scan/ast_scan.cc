@@ -292,7 +292,10 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
     }
   }
 
+  uint32 base_class_offset = 0;
+
   if (D->getNumBases()) {
+    bool has_unannotated_base_class = false;
     for (CXXBaseSpecifier const &base : D->bases()) {
       QualType qt = base.getType();
 
@@ -302,7 +305,21 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
       }
       CXXRecordDecl *decl = type->getAsCXXRecordDecl();
       if (!decl || !ReadAnnotation(decl, nullptr)) {
+        has_unannotated_base_class = true;
+
+        if (verbose()) {
+          outs() << "Has unannotated base class: " << decl->getName().str() << "\n";
+        }
         continue;
+      }
+      if (super)
+        continue;
+
+      ASTRecordLayout const &layout =
+          context_->getASTRecordLayout(D);
+      base_class_offset = layout.getBaseClassOffset(decl).getQuantity();
+      if (verbose()) {
+        outs() << "base class offset: " << base_class_offset << "\n";
       }
 
       std::string record_name;
@@ -323,8 +340,10 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
       }
       super = base_ns->FindClass(record_name.c_str());
       if (super)
-        break;
+        continue;
     }
+    if (!has_unannotated_base_class)
+      base_class_offset = 0;
   }
 
   SourceLocation source_loc = D->getSourceRange().getBegin();
@@ -334,8 +353,10 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
   PackageFile *pkg_file =
       package()->GetOrCreatePackageFile(header_file.c_str());
 
+
   Class *klass = new Class(name.c_str(), pkg_file, anno, super);
   klass->set_order(class_count());
+  klass->set_base_class_offset(base_class_offset);
   set_class_count(class_count() + 1);
   if (!parent) {
     ns->AddClass(klass);
