@@ -55,6 +55,7 @@ macro (add_module_rfl mid version)
   set (${mid}_rfl_TARGET_TYPE STATIC)
   set (${mid}_rfl_DEPS ${${mid}_DEPS})
   set (${mid}_rfl_INCLUDE_DIRS ${working_dir}/${mid})
+  set (${mid}_rfl_DEFINES ${${mid}_DEFINES})
 
   add_module (${mid}_rfl)
 
@@ -67,6 +68,22 @@ macro (add_module_rfl mid version)
 
   add_module (${mid})
 
+  set_module_output_directories(${mid} bin lib bin/plugins/${mid})
+  add_custom_command(TARGET ${mid} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${mid}/${mid}.ini
+    ${CMAKE_BINARY_DIR}/$<CONFIGURATION>/bin/plugins/${mid}/${mid}.ini)
+
+  if (OS_LINUX)
+    set (rpath_value "$ORIGIN")
+  elseif (OS_MAC)
+    set (rpath_value "$ORIGIN")
+    #set (rpath_value "@executable_path")
+  endif ()
+
+  set_target_properties(${mid} PROPERTIES
+    INSTALL_RPATH "${rpath_value}/../../lib:${rpath_value}"
+    BUILD_WITH_INSTALL_RPATH ON
+    )
 endmacro ()
 
 macro (add_rfl_sources mid version)
@@ -101,60 +118,4 @@ macro (add_rfl_sources mid version)
     )
   set_source_files_properties (${${mid}_rfl_SOURCES} PROPERTIES GENERATED TRUE )
   list (APPEND ${mid}_SOURCES ${${mid}_rfl_SOURCES} ${ARGN})
-endmacro ()
-
-macro (add_rfl_module mid version)
-  set (${mid}_rfl_SOURCES
-    ${CMAKE_CURRENT_BINARY_DIR}/${mid}.rfl.h
-    ${CMAKE_CURRENT_BINARY_DIR}/${mid}.rfl.cc
-    ${CMAKE_CURRENT_BINARY_DIR}/${mid}_export.rfl.h
-    )
-  set (${mid}_rfl_INCLUDE_DIRS ${${mid}_INCLUDE_DIRS} ${CMAKE_CURRENT_BUILD_DIR})
-  set (${mid}_rfl_TARGET_TYPE SHARED)
-  set (${mid}_rfl_DEPS ${mid} ${${mid}_DEPS})
-  set (${mid}_rfl_RFL_IMPORTS)
-  foreach (dep ${ARGN})
-    list (APPEND ${mid}_rfl_DEPS "${dep}_rfl")
-    list (APPEND ${mid}_rfl_RFL_IMPORTS "-i${dep}")
-  endforeach ()
-  foreach (dep ${${mid}_DEPS})
-    list (APPEND ${mid}_rfl_RFL_IMPORTS "-l${dep}")
-  endforeach ()
-  set (input_files)
-  foreach (src ${${mid}_SOURCES})
-    list (APPEND input_files ${CMAKE_CURRENT_SOURCE_DIR}/${src})
-    list (APPEND ${mid}_rfl_SOURCES
-      ${CMAKE_CURRENT_BINARY_DIR}/${src}.rfl.cc
-      ${CMAKE_CURRENT_BINARY_DIR}/${src}.rfl.h
-      )
-  endforeach ()
-  add_custom_command (OUTPUT ${${mid}_rfl_SOURCES}
-    COMMAND ${LIBRFL_RFLSCAN_EXE} -p ${CMAKE_BINARY_DIR}
-      -basedir ${CMAKE_SOURCE_DIR}
-      -output ${mid}
-      -pkg-name ${mid} -pkg-version=${version}
-      ${${mid}_rfl_RFL_IMPORTS}
-      -G $<TARGET_FILE:${RFL_GENERATOR}>
-      -plugin
-      ${input_files}
-    DEPENDS ${${mid}_SOURCES} ${${mid}_rfl_DEPS} ${RFL_GENERATOR}
-    )
-
-  add_module (${mid}_rfl)
-  set_module_output_directories(${mid}_rfl bin lib bin/plugins)
-  add_custom_command(TARGET ${mid}_rfl POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${mid}.ini
-    ${CMAKE_BINARY_DIR}/$<CONFIGURATION>/bin/plugins)
-
-  if (OS_LINUX)
-    set (rpath_value "$ORIGIN")
-  elseif (OS_MAC)
-    set (rpath_value "$ORIGIN")
-    #set (rpath_value "@executable_path")
-  endif ()
-
-  set_target_properties(${mid}_rfl PROPERTIES
-    INSTALL_RPATH "${rpath_value}/../../lib:${rpath_value}"
-    BUILD_WITH_INSTALL_RPATH ON
-    )
 endmacro ()
