@@ -9,11 +9,10 @@
 
 namespace test {
 
-typedef rfl_primitive(name = "Test Int Type")
+typedef rfl_primitive()
 int TestInt;
 
-enum rfl_enum(name = "Test Enum",
-              kTest1 = "Test One",
+enum rfl_enum(kTest1 = "Test One",
               kTest2 = "Test Two")
 TestEnum {
   kTest1 = 0,

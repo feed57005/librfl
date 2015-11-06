@@ -14,19 +14,16 @@
 
 namespace test {
 
-//class TestBaseObject;
-
 typedef std::vector<std::string> StringArray;
 
-struct EXAMPLE_EXPORT rfl_primitive(name = "Vector") Vector {
+struct EXAMPLE_EXPORT rfl_primitive() Vector {
 };
 
-class EXAMPLE_EXPORT rfl_class(name = "Test Base Object") TestBaseObject
-    : public test::Object {
+class EXAMPLE_EXPORT rfl_class() TestBaseObject : public example::Object {
 public:
   typedef std::vector<float> FloatArray;
 
-  struct rfl_primitive(name = "Float2") Float2 : Vector {
+  struct rfl_primitive() Float2 : Vector {
     float x_;
     float y_;
 
@@ -43,8 +40,7 @@ public:
   };
 
 
-  enum rfl_enum(name="Direction",
-                kDefault_Flag = "Default",
+  enum rfl_enum(kDefault_Flag = "Default",
                 kExtra_Flag = "Extra",
                 kSpecial_Flag = "Special")
   Flags {
@@ -55,7 +51,7 @@ public:
 
 public:
   TestBaseObject();
-  ~TestBaseObject();
+  ~TestBaseObject() override;
 
   int int_value() const { return int_value_; }
   void set_int_value(int v) { int_value_ = v; }
@@ -72,7 +68,7 @@ public:
   int const *cptr_value() const;
   void set_cptr_value(int const *cptr_value);
 
-  int const const_int_value() const;
+  int const_int_value() const;
 
   TestEnum test_enum() const;
   void set_test_enum(TestEnum test_enum);
@@ -84,6 +80,8 @@ public:
   void set_float2(Float2 float2);
 
 private:
+  friend class TestBaseObjectClass;
+
   typedef std::vector<int> IntArray;
 
   rfl_property(id = "int_value", kind = "number", name = "Integer Value",
@@ -130,19 +128,20 @@ private:
   Float2 float2_;
 };
 
-class EXAMPLE_EXPORT rfl_class(name = "Test Object") TestObject
-    : public TestBaseObject {
+class EXAMPLE_EXPORT rfl_class() TestObject : public TestBaseObject {
 public:
   TestObject();
-  virtual ~TestObject();
+  ~TestObject() override;
 
-	int *int_ptr() const;
-	void set_int_ptr(int *ptr);
+  int *int_ptr() const;
+  void set_int_ptr(int *ptr);
 
   Flags more_flags() const;
   void set_more_flags(Flags more_flags);
 
 private:
+  friend class TestObjectClass;
+
   typedef int *IntPtr;
   rfl_property(id = "int_ptr", kind = "pointer", name = "Integer Pointer",
                default = nullptr)
@@ -151,6 +150,22 @@ private:
   rfl_property(id = "more_flags", kind = "enum", name = "More Test Flags",
                default = "kSpecial_Flag")
   Flags more_flags_;
+};
+
+class EXAMPLE_EXPORT ExternalBaseClass {
+public:
+  virtual ~ExternalBaseClass() {}
+  virtual void ExternalStuff() = 0;
+};
+
+class EXAMPLE_EXPORT rfl_class() TestObjectExBase : public ExternalBaseClass,
+                                                    public TestObject {
+public:
+  TestObjectExBase() {}
+  ~TestObjectExBase() override {}
+
+  // ExternalBaseClass overrides
+  void ExternalStuff() override {}
 };
 
 }  // namespace test

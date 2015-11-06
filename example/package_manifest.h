@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef __PACKAGE_MANIFEST_H__
-#define __PACKAGE_MANIFEST_H__
+#ifndef __EXAMPLE_PACKAGE_MANIFEST_H__
+#define __EXAMPLE_PACKAGE_MANIFEST_H__
 
 #include <map>
 #include <string>
 
-namespace test {
+namespace example {
 
 class PackageManifest {
 public:
@@ -24,11 +24,12 @@ public:
       enumerator(it->first, it->second);
     }
   }
+
 private:
   typedef std::map<std::string, std::string> EntryMap;
   EntryMap entry_map_;
 };
 
-} // namespace test
+} // namespace example
 
-#endif /* __PACKAGE_MANIFEST_H__ */
+#endif /* __EXAMPLE_PACKAGE_MANIFEST_H__ */

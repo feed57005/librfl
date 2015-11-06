@@ -10,7 +10,7 @@
 #include <iostream>
 #include <algorithm>
 
-namespace test {
+namespace example {
 
 bool PackageManifest::Load(char const *filename) {
   std::ifstream is(filename, std::ios_base::in);
@@ -112,4 +112,4 @@ void PackageManifest::SetEntry(char const *key, char const *value) {
   }
 }
 
-} // namespace test
+} // namespace example

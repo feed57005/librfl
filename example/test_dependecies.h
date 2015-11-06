@@ -10,21 +10,15 @@
 
 namespace test {
 
-class EXAMPLE_EXPORT rfl_class(name = "Extended Test Object") ExtendedTestObject
-    : public TestObject {
+class EXAMPLE_EXPORT rfl_class() ExtendedTestObject : public TestObject {
+public:
+  ~ExtendedTestObject() override {}
 
   void blabla();
 
 private:
-  rfl_property(id = "count",
-               kind = "number",
-               name = "Count",
-               default = 10,
-               min = 0,
-               max = 100,
-               step = 1,
-               page_step = 1,
-               page_size = 1,
+  rfl_property(id = "count", kind = "number", name = "Count", default = 10,
+               min = 0, max = 100, step = 1, page_step = 1, page_size = 1,
                precision = 0)
   int count_;
 };

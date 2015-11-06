@@ -8,8 +8,8 @@
 #include "rfl/annotations.h"
 #include "example/object.h"
 
-namespace test {
+namespace example {
 
-} // namespace test
+} // namespace example
 
 #endif /* __TEST_OBJECT_H__ */

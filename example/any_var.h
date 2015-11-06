@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef __RFL_ANYVAR_H__
-#define __RFL_ANYVAR_H__
+#ifndef __EXAMPLE_ANY_VAR_H__
+#define __EXAMPLE_ANY_VAR_H__
 
-#include "rfl/rfl_export.h"
-#include "rfl/type_info.h"
+#include "example/example_export.h"
+#include "example/type_info.h"
 #include <new>
 
-namespace rfl {
+namespace example {
 
 struct AnyVarModel;
 
@@ -18,7 +18,7 @@ struct AnyVarModel;
  * Low-level virtual table structure for work with regular types.
  * This structure is filled when templated AnyVarModel is instantiated.
  */
-struct RFL_EXPORT AnyVarVTable {
+struct EXAMPLE_EXPORT AnyVarVTable {
   // operator= (T const &);
   void (*Assign)(AnyVarModel &dst, AnyVarModel const &src);
 
@@ -47,7 +47,7 @@ struct RFL_EXPORT AnyVarVTable {
  * Base structure for templated model implementations + convinience wrapper for
  * AnyVarVTable calling.
  */
-struct RFL_EXPORT AnyVarModel {
+struct EXAMPLE_EXPORT AnyVarModel {
   AnyVarModel(AnyVarVTable const &table) : m_VTable(&table) {}
 
   inline void Assign(AnyVarModel const &model) {
@@ -327,6 +327,6 @@ private:
   AnyVarStorage storage_;
 };
 
-}  // namespace rfl
+}  // namespace example
 
-#endif /* __RFL_ANYVAR_H__ */
+#endif /* __EXAMPLE_ANY_VAR_H__ */

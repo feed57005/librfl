@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef __RFL_TYPEINFO_H__
-#define __RFL_TYPEINFO_H__
+#ifndef __EXAMPLE_TYPEINFO_H__
+#define __EXAMPLE_TYPEINFO_H__
 
-#include "rfl/rfl_export.h"
+#include "example/example_export.h"
 
 #include <stddef.h>
 #include <string>
 
-#ifdef RFL_TYPE_INFO_FULL_COMPARE
+#ifdef EXAMPLE_TYPE_INFO_FULL_COMPARE
 # include <cstring>
 #endif
 
-#define RFL_TYPE_INFO_TABLE_MAX_PARAM 5
+#define EXAMPLE_TYPE_INFO_TABLE_MAX_PARAM 5
 
-namespace rfl {
+namespace example {
 
 /**
  * TypeInfoTable
@@ -25,11 +25,11 @@ namespace rfl {
  */
 struct TypeInfoTable {
   const char *Name;
-  const TypeInfoTable *Parameter[RFL_TYPE_INFO_TABLE_MAX_PARAM];
+  const TypeInfoTable *Parameter[EXAMPLE_TYPE_INFO_TABLE_MAX_PARAM];
 };
 
 inline bool operator==(TypeInfoTable const &a, TypeInfoTable const &b) {
-#ifndef RFL_TYPE_INFO_FULL_COMPARE
+#ifndef EXAMPLE_TYPE_INFO_FULL_COMPARE
   /* it's safe to compare by pointer values only when TypeInfo
    * is declared once for each type. */
   return (&a == &b);
@@ -50,7 +50,7 @@ inline bool operator==(TypeInfoTable const &a, TypeInfoTable const &b) {
     ++bp;
   }
   return *ap == *bp
-#endif  // RFL_TYPE_INFO_FULL_COMPARE
+#endif  // EXAMPLE_TYPE_INFO_FULL_COMPARE
 }
 
 inline bool operator!=(TypeInfoTable const &a, TypeInfoTable const &b) {
@@ -129,12 +129,12 @@ struct EmptyType {
  * runtime type name information independent of std's RTTI, with support
  * for template arguments.
  * For each type you whish to indentify at runtime, you first
- * need to define its name with RFL_NAME_TYPE_<N> macro where N is number
+ * need to define its name with EXAMPLE_NAME_TYPE_<N> macro where N is number
  * of template arguments.
- * For example type 'int' has 0 arguments, thus <code>RFL_NAME_TYPE_0 ("int",
+ * For example type 'int' has 0 arguments, thus <code>EXAMPLE_NAME_TYPE_0 ("int",
  *int)
  * </code>. Type 'std::vector' usually takes one argument, this <code>
- * RFL_NAME_TYPE_1 ("std::vector", std::vector<ARG1>)</code>.
+ * EXAMPLE_NAME_TYPE_1 ("std::vector", std::vector<ARG1>)</code>.
  *
  * Note:
  * Since comparing two TypeInfo instances can occur quite frequently,
@@ -144,7 +144,7 @@ struct EmptyType {
  * when dealing with two instances from different compilation units, since
  * each unit generates it's own local TypeInfoTable. If you can't guarantee
  * this is not true, for whatever reason, make sure you compile with
- * RFL_TYPE_INFO_FULL_COMPARE defined.
+ * EXAMPLE_TYPE_INFO_FULL_COMPARE defined.
  */
 class TypeInfo {
  public:
@@ -173,8 +173,8 @@ class TypeInfo {
 
 /*----------------------------------------------------------------------------*/
 
-#define RFL_NAME_TYPE_0(export_decl, name, ...)                             \
-  namespace rfl {                                                           \
+#define EXAMPLE_NAME_TYPE_0(export_decl, name, ...)                             \
+  namespace example {                                                           \
   template <typename Any>                                                   \
   struct TypeInfoModel<__VA_ARGS__, Any> {                                  \
     static const TypeInfoTable Value;                                       \
@@ -182,10 +182,10 @@ class TypeInfo {
   template <typename Any>                                                   \
   const TypeInfoTable TypeInfoModel<__VA_ARGS__, Any>::Value = {name, {0}}; \
   extern template export_decl TypeInfo TypeInfoOf<__VA_ARGS__>();           \
-  }  // namespace rfl
+  }  // namespace example
 
-#define RFL_NAME_TYPE_1(name, ...)                               \
-  namespace rfl {                                                \
+#define EXAMPLE_NAME_TYPE_1(name, ...)                               \
+  namespace example {                                                \
   template <typename Any, typename ARG1>                         \
   struct TypeInfoModel<__VA_ARGS__, Any> {                       \
     static const TypeInfoTable Value;                            \
@@ -194,10 +194,10 @@ class TypeInfo {
   const TypeInfoTable TypeInfoModel<__VA_ARGS__, Any>::Value = { \
       name,                                                      \
       {&TypeInfoModel<ARG1>::Value}};                            \
-  }  // namespace rfl
+  }  // namespace example
 
-#define RFL_NAME_TYPE_2(name, ...)                                        \
-  namespace rfl {                                                         \
+#define EXAMPLE_NAME_TYPE_2(name, ...)                                        \
+  namespace example {                                                         \
   template <typename Any, typename ARG1, typename ARG2>                  \
   struct TypeInfoModel<__VA_ARGS__, Any> {                               \
     static const TypeInfoTable Value;                                    \
@@ -205,12 +205,12 @@ class TypeInfo {
   template <typename Any, typename ARG1, typename ARG2>                  \
   const TypeInfoTable TypeInfoModel<__VA_ARGS__, Any>::Value = {         \
       name, {&TypeInfoModel<ARG1>::Value, &TypeInfoModel<ARG2>::Value}}; \
-  }  // namespace rfl
+  }  // namespace example
 
-#define RFL_NAME_INSTANCE(...)                 \
-  namespace rfl {                              \
+#define EXAMPLE_NAME_INSTANCE(...)                 \
+  namespace example {                              \
   template TypeInfo TypeInfoOf<__VA_ARGS__>(); \
-  }  // namespace rfl
+  }  // namespace example
 
 template <typename T>
 inline TypeInfo TypeInfoOf() {
@@ -227,22 +227,22 @@ inline TypeInfo TypeInfoOf(T const &) {
   return TypeInfoOf<T const &>();
 }
 
-}  // namespace rfl
+}  // namespace example
 
-#include "rfl/types.h"
 #include <string>
 #include <vector>
 
-RFL_NAME_TYPE_0(RFL_EXPORT, "int", int)
-RFL_NAME_TYPE_0(RFL_EXPORT, "float", float)
-RFL_NAME_TYPE_0(RFL_EXPORT, "double", double)
-RFL_NAME_TYPE_0(RFL_EXPORT, "long", long)
-RFL_NAME_TYPE_0(RFL_EXPORT, "string", std::string)
-RFL_NAME_TYPE_0(RFL_EXPORT, "empty", EmptyType)
+EXAMPLE_NAME_TYPE_0(EXAMPLE_EXPORT, "bool", bool)
+EXAMPLE_NAME_TYPE_0(EXAMPLE_EXPORT, "int", int)
+EXAMPLE_NAME_TYPE_0(EXAMPLE_EXPORT, "float", float)
+EXAMPLE_NAME_TYPE_0(EXAMPLE_EXPORT, "double", double)
+EXAMPLE_NAME_TYPE_0(EXAMPLE_EXPORT, "long", long)
+EXAMPLE_NAME_TYPE_0(EXAMPLE_EXPORT, "string", std::string)
+EXAMPLE_NAME_TYPE_0(EXAMPLE_EXPORT, "empty", EmptyType)
 
-RFL_NAME_TYPE_1("ptr", ARG1 *)
-RFL_NAME_TYPE_1("const", ARG1 const)
-RFL_NAME_TYPE_1("ref", ARG1 &)
-RFL_NAME_TYPE_1("array", std::vector<ARG1>)
+EXAMPLE_NAME_TYPE_1("ptr", ARG1 *)
+EXAMPLE_NAME_TYPE_1("const", ARG1 const)
+EXAMPLE_NAME_TYPE_1("ref", ARG1 &)
+EXAMPLE_NAME_TYPE_1("array", std::vector<ARG1>)
 
-#endif /* __RFL_TYPEINFO_H__ */
+#endif /* __EXAMPLE_TYPEINFO_H__ */

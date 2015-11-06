@@ -43,7 +43,7 @@ void TestBaseObject::set_cptr_value(int const *cptr_value) {
   cptr_value_ = cptr_value;
 }
 
-int const TestBaseObject::const_int_value() const {
+int TestBaseObject::const_int_value() const {
   return const_int_value_;
 }
 
