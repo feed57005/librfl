@@ -10,6 +10,11 @@ find_program(LIBRFL_RFLSCAN_EXE
   HINTS ${LIBRFL_PATH}/bin $ENV{LIBRFL_PATH}/bin
   DOC "rfl-scan executable location")
 
+find_program(LIBRFL_RFLGEN_PY
+  NAMES rfl-gen.py
+  HINTS ${LIBRFL_PATH}/bin/rfl-gen $ENV{LIBRFL_PATH}/bin/rfl-gen
+)
+
 find_library(_librfl
   NAMES rfl librfl
   HINTS ${LIBRFL_PATH}/lib $ENV{LIBRFL_PATH}/lib
