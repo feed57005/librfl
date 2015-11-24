@@ -1,0 +1,15 @@
+{% macro header_guard_begin(pkg, defname) -%}
+{% set pkg_upper = pkg.replace('.', '_')|upper -%}
+#ifndef __{{pkg_upper}}_{{defname|upper}}_H__
+#define __{{pkg_upper}}_{{defname|upper}}_H__
+{%- endmacro %}
+
+{% macro header_guard_end(pkg, defname) -%}
+{% set pkg_upper = pkg.replace('.', '_')|upper -%}
+#endif // __{{pkg_upper}}_{{defname|upper}}_H__
+{%- endmacro %}
+
+{% macro preamble(defname, description) -%}
+// {{description}}
+// Generated file, do not modify.
+{%- endmacro %}
