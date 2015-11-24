@@ -1,4 +1,5 @@
 #include "rfl-scan/compilation_db.h"
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Path.h"
@@ -20,22 +21,22 @@ char const *const kSourceExtensions[] = {".cc", ".cpp", ".cxx", ".c++", ".c"};
 
 void ScanCompilationDatabase::cleanupCommands(std::vector<CompileCommand> &cmds,
                                               StringRef const &filename) const {
-	// go through all commandlines and replace -c file with ours
+  // go through all commandlines and replace -c file with ours
   for (CompileCommand &cmd : cmds) {
-		for (std::vector<std::string>::iterator it = cmd.CommandLine.begin();
-				 it != cmd.CommandLine.end();
-				 ) {
-			if (!it->empty() && it->compare("-c") == 0) {
-				++it;
-				it->assign(filename);
-			} else {
-				++it;
-			}
-		}
-		// since this is header we need to specify that's a c++ header
-		cmd.CommandLine.push_back("-x");
-		cmd.CommandLine.push_back("c++");
-	}
+
+    for (std::vector<std::string>::iterator it = cmd.CommandLine.begin();
+         it != cmd.CommandLine.end();) {
+      if (!it->empty() && it->compare("-c") == 0) {
+        ++it;
+        it->assign(filename);
+      } else {
+        ++it;
+      }
+    }
+    // since this is header we need to specify that's a c++ header
+    cmd.CommandLine.insert(cmd.CommandLine.begin() + 1, "c++");
+    cmd.CommandLine.insert(cmd.CommandLine.begin() + 1, "-x");
+  }
 }
 
 std::vector<CompileCommand> ScanCompilationDatabase::getCompileCommands(
@@ -50,7 +51,7 @@ std::vector<CompileCommand> ScanCompilationDatabase::getCompileCommands(
          it != hdr_exts.end();
          ++it) {
       if (ext.compare(*it) == 0) {
-				// header extensions match, so try to replace it with source ext.
+        // header extensions match, so try to replace it with source ext.
         for (ArrayRef<char const *>::const_iterator cit = src_exts.begin();
              cit != src_exts.end();
              ++cit) {
@@ -58,24 +59,26 @@ std::vector<CompileCommand> ScanCompilationDatabase::getCompileCommands(
           sys::path::replace_extension(src_file, *cit);
           result = compilation_db_.getCompileCommands(src_file);
           if (result.size()) {
-						cleanupCommands(result,file);
+            cleanupCommands(result,file);
             return result;
-					}
+          }
         }
-				break;
+        break;
       }
     }
-	llvm::outs() << "No luck for: " << file << "\n";
-		llvm::outs().flush();
-		// nothing found, try all other files
-		for (std::string const &src : source_files_) {
-			if (src.compare(file) == 0)
-				continue;
-			result = getCompileCommands(src);
-			if (!result.empty())
-				cleanupCommands(result,file);
-				return result;
-		}
+
+    outs() << "No luck for: " << file << "\n";
+    outs().flush();
+
+    // Nothing found, try all other files
+    for (std::string const &src : source_files_) {
+      if (src.compare(file) == 0)
+        continue;
+      result = getCompileCommands(src);
+      if (!result.empty())
+        cleanupCommands(result,file);
+        return result;
+    }
   }
   return result;
 }

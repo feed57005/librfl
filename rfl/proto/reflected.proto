@@ -1,0 +1,103 @@
+package rfl.proto;
+
+message Annotation {
+  message Entry {
+    optional string key = 1;
+    optional string value = 2;
+  }
+  optional string kind = 1;
+  repeated Entry entries = 2;
+}
+
+message TypeRef {
+  enum Kind {
+    INVALID = 0;
+    SYSTEM = 1;
+    ENUM = 2;
+    CLASS = 3;
+  }
+  optional Kind kind = 1;
+  optional string type_name = 2;
+  optional string source_file = 3;
+}
+
+message TypeQualifier {
+  optional bool is_pointer = 1;
+  optional bool is_ref = 2;
+  optional bool is_pod = 3;
+  optional bool is_array = 4;
+  optional bool is_const = 5;
+  optional bool is_volatile = 6;
+  optional bool is_restrict = 7;
+}
+
+message Enum {
+  message Item {
+    optional string id = 1;
+    optional int64 value = 2;
+  }
+  optional string name = 1;
+  optional string type = 2;
+  repeated Item items = 3;
+  optional Annotation annotation = 4;
+}
+
+message Argument {
+  optional string name = 1;
+  optional TypeRef type_ref = 2;
+  optional TypeQualifier type_qualifier = 3;
+  optional Annotation annotation = 5;
+}
+
+message Method {
+  optional string name = 1;
+  optional Argument return_value = 2;
+  repeated Argument arguments = 3;
+  optional Annotation annotation = 4;
+}
+
+message Field {
+  optional string name = 1;
+  optional TypeRef type_ref = 2;
+  optional TypeQualifier type_qualifier = 3;
+  optional Annotation annotation = 4;
+  optional uint32 offset = 5;
+}
+
+message Class {
+  optional string name = 1;
+  optional uint32 order = 2;
+  optional uint32 base_class_offset = 3;
+  optional TypeRef base_class = 4;
+  optional Annotation annotation = 5;
+  repeated Field fields = 6;
+  repeated Method methods = 7;
+  repeated Enum enums = 8;
+  repeated Class classes = 9;
+}
+
+message Namespace {
+  optional string name = 1;
+  optional Annotation annotation = 2;
+  repeated Class classes = 3;
+  repeated Enum enums = 4;
+  repeated Namespace namespaces = 5;
+}
+
+message PackageFile {
+  optional string name = 1;
+  optional string source_file = 2;
+  optional bool is_dependecy = 3;
+  repeated Namespace namespaces = 4;
+  repeated Class classes = 5;
+  repeated Enum enums = 6;
+}
+
+message Package {
+  optional string name = 1;
+  optional string version = 2;
+  repeated string imports = 3;
+  repeated string libraries = 4;
+  repeated PackageFile package_files = 5;
+  repeated string provided_classes = 6;
+}

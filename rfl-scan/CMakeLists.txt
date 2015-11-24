@@ -11,6 +11,8 @@ set (rfl-scan_SOURCES
   compilation_db.cc
   compilation_db.h
   main.cc
+  proto_ast_scan.cc
+  proto_ast_scan.h
   )
 set (rfl-scan_TARGET_TYPE executable)
 set (implicit "")
@@ -46,7 +48,7 @@ set (rfl-scan_DEFINES "IMPLICIT=\"${implicit}\"")
 
 set (CMAKE_CXX_FLAGS "-fno-rtti -fno-exceptions ${LLVM_CXX_FLAGS} -Wno-strict-aliasing")
 
-set (rfl-scan_DEPS rfl)
+set (rfl-scan_DEPS rfl protobuf_lite)
 set (rfl-scan_LIBS
   clangFrontend
   clangSerialization

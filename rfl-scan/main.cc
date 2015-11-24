@@ -9,6 +9,8 @@
 
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
@@ -16,14 +18,18 @@
 #include "llvm/Support/LineIterator.h"
 #include "llvm/ADT/SmallString.h"
 
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+
 #include "rfl/reflected.h"
 #include "rfl/generator.h"
 #include "rfl/native_library.h"
 #include "rfl-scan/ast_scan.h"
 #include "rfl-scan/compilation_db.h"
+#include "rfl-scan/proto_ast_scan.h"
 
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <algorithm>
 
 using namespace clang::driver;
@@ -67,11 +73,14 @@ static cl::opt<std::string> Basedir("basedir",
                                     cl::desc("Package basedir"),
                                     cl::cat(RflScanCategory));
 static cl::opt<std::string> InputFile("input",
-                                    cl::desc("file with inputs"),
+                                    cl::desc("File with inputs"),
                                     cl::cat(RflScanCategory));
 
 static cl::opt<bool> GeneratePlugin("plugin",
-                                    cl::desc("Generate pluging"),
+                                    cl::desc("Generate plugin (DEPRECATED)"),
+                                    cl::cat(RflScanCategory));
+static cl::opt<bool> GenerateProto("proto",
+                                    cl::desc("Generate proto"),
                                     cl::cat(RflScanCategory));
 static cl::opt<unsigned> Verbose("verbose",
                                  cl::desc("Verbose level"),
@@ -88,6 +97,14 @@ static std::string StripBasedir(std::string const &filename,
   return filename;
 }
 
+static std::string NormalizedPath(std::string const &path) {
+  std::string ret = path;
+  if (!sys::path::is_separator(ret[ret.length()-1])) {
+    ret += sys::path::get_separator();
+  }
+  return ret;
+}
+
 ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
   return [extra] (CommandLineArguments const &args){
     CommandLineArguments ret(args);
@@ -96,137 +113,180 @@ ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
   };
 }
 
-typedef int (*GenPackage)(char const *path, rfl::Package *pkg);
-typedef rfl::Generator *(*CreateGenerator)();
+int ProtoScanner(ClangTool &tool) {
+  using namespace std;
+  using namespace rfl;
+  using namespace rfl::scan;
 
-int main(int argc, const char **argv) {
-  llvm::sys::PrintStackTraceOnErrorSignal();
+  string basedir = NormalizedPath(Basedir.getValue());
 
-  CommonOptionsParser options_parser(argc, argv, RflScanCategory);
+  ScannerContext scan_ctx(basedir, Verbose.getValue());
 
-  std::vector<std::string> source_path_list;
-  if (InputFile.getNumOccurrences() == 0) {
-    source_path_list =
-        options_parser.getSourcePathList();
-  } else {
-    llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> input_buffer =
-        llvm::MemoryBuffer::getFile(InputFile.getValue());
-    if (std::error_code result = input_buffer.getError()) {
-      llvm::errs() << "Error while opening JSON database: " + result.message();
+  // setup package
+  proto::Package &pkg = scan_ctx.package();
+  pkg.set_name(PackageName.getValue());
+  pkg.set_version(PackageVersion.getValue());
+
+  // handle imports
+  for (vector<string>::iterator it = Imports.begin(), e = Imports.end();
+       it != e; ++it) {
+    if (Verbose.getValue() > 1) {
+      outs() << "Adding import " << *it << "\n";
+    }
+    pkg.add_imports(*it);
+  }
+
+  // handle libs
+  for (vector<string>::iterator it = Libs.begin(), e = Libs.end(); it != e;
+       ++it) {
+    if (Verbose.getValue() > 1) {
+      outs() << "Adding library " << *it << "\n";
+    }
+    pkg.add_libraries(*it);
+  }
+
+  outs().flush();
+
+  unique_ptr<ScannerActionFactory> factory(new ScannerActionFactory(&scan_ctx));
+
+  int ret = tool.run(factory.get());
+  if (ret == 0) {
+    string file = OutputFile.getValue();
+
+    // Make sure that output directory exists
+    //SmallString<256> path(file);
+    //sys::path::remove_filename(path);
+    //if (sys::fs::create_directories(path, true)) {
+    //  outs() << "Unable to create directory\n";
+    //  return false;
+    //}
+
+    if (Verbose.getValue() > 1) {
+      outs() << "Writing proto file " << file << "\n";
+      outs().flush();
+    }
+
+    // Prepare output file
+    // TODO Write to temporary file. If output file already exists
+    // check for modifications and if files differ, replace it.
+    ofstream file_out;
+    file_out.open(file, ios_base::binary);
+    if (!file_out.good()) {
+      errs() << "Failed to open file " << file << " " << strerror(errno)
+             << "\n";
+      file_out.close();
       return 1;
     }
-    llvm::line_iterator line_it(*input_buffer.get());
-    while (!line_it.is_at_end()) {
-      source_path_list.push_back(*line_it);
-      ++line_it;
+
+    // write header
+    char magic[5] = {'R', 'F', 'L', 1, 0};
+    file_out << magic;
+
+    // write protobuf to file
+    {
+      google::protobuf::io::OstreamOutputStream proto_out(&file_out);
+      if (!pkg.SerializeToZeroCopyStream(&proto_out)) {
+        errs() << "Failed to write file " << file << " " << strerror(errno)
+               << "\n";
+        file_out.close();
+        return 1;
+      }
     }
+
+    file_out.flush();
+    file_out.close();
+  } else {
+    errs() << "Scanning failed " << ret << "\n";
+    errs().flush();
   }
-  CompilationDatabase &default_cdb = options_parser.getCompilations();
-  rfl::scan::ScanCompilationDatabase cdb(default_cdb, source_path_list);
-  ClangTool tool(cdb, source_path_list);
-  tool.clearArgumentsAdjusters();
 
-  SmallString<128> resource_dir(LLVM_PREFIX);
-  llvm::sys::path::append(resource_dir , "lib", "clang", CLANG_VERSION_STRING);
+  return ret;
+}
 
-  CommandLineArguments extra_args;
+int LegacyScanner(ClangTool &tool,
+                  std::vector<std::string> const &source_path_list) {
+  using namespace std;
+  using namespace rfl;
 
-  extra_args.push_back("-resource-dir");
-  extra_args.push_back(resource_dir.str());
-  extra_args.push_back("-D__RFL_SCAN__");
-  extra_args.push_back("-Wno-unused-local-typedef"); // TODO hack
-
-  // split and insert IMPLICIT includes
-  std::istringstream iss(std::string(IMPLICIT));
-  std::copy(std::istream_iterator<std::string>(iss),
-            std::istream_iterator<std::string>(),
-            std::back_inserter(extra_args));
-
+  string output_path = NormalizedPath(OutputPath.getValue());
+  string basedir = NormalizedPath(Basedir.getValue());
+  string const &pkg_name = PackageName.getValue();
+  string const &pkg_version = PackageVersion.getValue();
   if (Verbose.getValue() > 1) {
-    for (std::string const &arg : extra_args) {
-      outs() << arg << "\n";
-    }
-    outs() << "using resource dir: " << resource_dir.c_str() << "\n";
+    outs() << "output path: " << output_path << "\n"
+           << "basedir: " << basedir << "\n";
     outs().flush();
   }
 
-  tool.appendArgumentsAdjuster(
-     getInsertArgumentAdjuster(extra_args, ArgumentInsertPosition::BEGIN));
-
-  std::string output_path = OutputPath.getValue();
-  if (!llvm::sys::path::is_separator(output_path[output_path.length()-1])) {
-    output_path += llvm::sys::path::get_separator();
-  }
-  std::string basedir = Basedir.getValue();
-  if (!llvm::sys::path::is_separator(basedir[basedir.length()-1])) {
-    basedir += llvm::sys::path::get_separator();
-  }
-  std::string const &pkg_name = PackageName.getValue();
-  std::string const &pkg_version = PackageVersion.getValue();
-  if (Verbose.getValue() > 1) {
-    llvm::outs() << "output path: " << output_path << "\n"
-      << "basedir: " << basedir << "\n";
-    llvm::outs().flush();
-  }
-  std::unique_ptr<rfl::Package> package(new rfl::Package(pkg_name.c_str(), pkg_version.c_str()));
+  unique_ptr<Package> package(
+      new Package(pkg_name.c_str(), pkg_version.c_str()));
 
   // handle imports
-  for (std::vector<std::string>::iterator it = Imports.begin(),
-                                          e = Imports.end();
+  for (vector<string>::iterator it = Imports.begin(), e = Imports.end();
        it != e; ++it) {
     if (Verbose.getValue() > 1) {
-      llvm::outs() << "importing " << *it << "\n";
+      outs() << "importing " << *it << "\n";
     }
     package->AddImport((*it).c_str());
   }
-  llvm::outs().flush();
+  outs().flush();
 
   // handle libs
-  for (std::vector<std::string>::iterator it = Libs.begin(), e = Libs.end();
-       it != e; ++it) {
+  for (vector<string>::iterator it = Libs.begin(), e = Libs.end(); it != e;
+       ++it) {
     package->AddLibrary((*it).c_str());
   }
 
   // handle sources
-  for (std::string const &src : source_path_list) {
-    std::string rel_src = StripBasedir(src, basedir);
-    rfl::PackageFile *pkg_file =
-        package->GetOrCreatePackageFile(rel_src.c_str());
+  for (string const &src : source_path_list) {
+    string rel_src = StripBasedir(src, basedir);
+    PackageFile *pkg_file = package->GetOrCreatePackageFile(rel_src.c_str());
     pkg_file->set_is_dependecy(false);
   }
 
-  std::unique_ptr<rfl::scan::ASTScannerContext> scan_ctx(
-      new rfl::scan::ASTScannerContext(package.get(), basedir,
-                                       Verbose.getValue()));
+  unique_ptr<scan::ASTScannerContext> scan_ctx(
+      new scan::ASTScannerContext(package.get(), basedir, Verbose.getValue()));
 
-  std::unique_ptr<rfl::scan::ASTScanActionFactory> factory(
-      new rfl::scan::ASTScanActionFactory(scan_ctx.get()));
+  unique_ptr<scan::ASTScanActionFactory> factory(
+      new scan::ASTScanActionFactory(scan_ctx.get()));
 
   int ret = tool.run(factory.get());
+  if (ret != 0) {
+    errs() << "Scanning failed " << ret << "\n";
+    errs().flush();
+    return ret;
+  }
 
   if (Generators.empty()) {
-    llvm::outs() << "No generator specified\n";
+    outs() << "No generator specified\n";
     return 1;
   }
-  for (std::string const &generator : Generators) {
-    llvm::outs() << "Using generator " << generator << "\n";
-    llvm::outs().flush();
-    std::string err;
-    rfl::NativeLibrary lib = rfl::LoadNativeLibrary(generator.c_str(), &err);
+
+  for (string const &generator : Generators) {
+    if (Verbose.getValue() > 1) {
+      outs() << "Using generator " << generator << "\n";
+      outs().flush();
+    }
+
+    string err;
+    NativeLibrary lib = LoadNativeLibrary(generator.c_str(), &err);
     if (!lib) {
-      llvm::errs() << err << "\n";
-      llvm::outs().flush();
+      errs() << "Failed to load native library '" << generator
+             << "' : " << err << "\n";
+      errs().flush();
       ret = 1;
       continue;
     }
+
+    typedef Generator *(*CreateGenerator)();
     CreateGenerator create_gen =
-        (CreateGenerator)rfl::GetFunctionPointerFromNativeLibrary(
-            lib, "CreateGenerator");
+        (CreateGenerator)GetFunctionPointerFromNativeLibrary(lib,
+                                                             "CreateGenerator");
     if (create_gen != nullptr) {
-      rfl::Generator *gen = create_gen();
+      Generator *gen = create_gen();
       if (gen == nullptr) {
-        llvm::errs() << "CreateGenerator() returned null\n";
-        llvm::errs().flush();
+        errs() << "CreateGenerator() returned null\n";
+        errs().flush();
         ret = 1;
         continue;
       }
@@ -236,11 +296,80 @@ int main(int argc, const char **argv) {
       gen->Generate(package.get());
       delete gen;
     } else {
-      llvm::errs() << "Could not find symbol 'CreateGenerator'\n";
-      llvm::errs().flush();
+      errs() << "Could not find symbol 'CreateGenerator'\n";
+      errs().flush();
       ret = 1;
       continue;
     }
   }
   return ret;
+}
+
+int main(int argc, char const **argv) {
+  sys::PrintStackTraceOnErrorSignal();
+
+  CommonOptionsParser options_parser(argc, argv, RflScanCategory);
+
+  // Fill source paths from input file or command line
+  std::vector<std::string> source_path_list;
+  if (InputFile.getNumOccurrences() == 0) {
+    source_path_list = options_parser.getSourcePathList();
+  } else {
+    ErrorOr<std::unique_ptr<MemoryBuffer>> input_buffer =
+        MemoryBuffer::getFile(InputFile.getValue());
+    if (std::error_code result = input_buffer.getError()) {
+      errs() << "Error while opening JSON database: " + result.message();
+      errs().flush();
+      return 1;
+    }
+
+    line_iterator line_it(*input_buffer.get());
+    while (!line_it.is_at_end()) {
+      source_path_list.push_back(*line_it);
+      ++line_it;
+    }
+  }
+
+  // Create compile flags DB
+  CompilationDatabase &default_cdb = options_parser.getCompilations();
+  rfl::scan::ScanCompilationDatabase cdb(default_cdb, source_path_list);
+
+  // Determine path to clang includes
+  // TODO compilation define for external/local clang headers
+  SmallString<128> resource_dir(LLVM_PREFIX);
+  sys::path::append(resource_dir, "lib", "clang", CLANG_VERSION_STRING);
+
+  // Set internal / extra compilation flags
+  CommandLineArguments extra_args;
+  extra_args.push_back("-resource-dir");
+  extra_args.push_back(resource_dir.str());
+  extra_args.push_back("-D__RFL_SCAN__");
+  extra_args.push_back("-Wno-unused-local-typedef");  // TODO hack
+
+  // Split and insert includes from IMPLICIT define
+  std::istringstream iss(std::string(IMPLICIT));
+  std::copy(std::istream_iterator<std::string>(iss),
+            std::istream_iterator<std::string>(),
+            std::back_inserter(extra_args));
+
+  if (Verbose.getValue() > 2) {
+    outs() << "Extra arguments:";
+    for (std::string const &arg : extra_args) {
+      outs() << " " << arg;
+    }
+    outs() << "\n";
+    outs().flush();
+  }
+
+  // Create ClangTool
+  ClangTool tool(cdb, source_path_list);
+  tool.clearArgumentsAdjusters();
+  tool.appendArgumentsAdjuster(
+      getInsertArgumentAdjuster(extra_args, ArgumentInsertPosition::BEGIN));
+
+  if (GenerateProto.getValue()) {
+    return ProtoScanner(tool);
+  } else {
+    return LegacyScanner(tool, source_path_list);
+  }
 }

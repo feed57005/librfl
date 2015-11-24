@@ -98,6 +98,13 @@ void ASTScanner::HandleTranslationUnit(ASTContext &Context) {
   TranslationUnitDecl *D = Context.getTranslationUnitDecl();
   context_ = &Context;
 
+  if (verbose()) {
+    FileID main_id = src_manager().getMainFileID();
+    SourceLocation location = src_manager().getLocForStartOfFile(main_id);
+    outs() << "Translation unit: " << this << " ";
+    location.print(outs(), src_manager());
+    outs() << "\n";
+  }
   TraverseDecl(D);
 }
 
