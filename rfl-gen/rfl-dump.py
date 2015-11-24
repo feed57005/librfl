@@ -1,7 +1,11 @@
 #!/usr/bin/env python
+# Copyright (c) 2015 Pavel Novy. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
 
 import sys
 import rfl.proto
+
 
 def Main():
     if len(sys.argv) < 2:
