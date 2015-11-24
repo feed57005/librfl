@@ -70,10 +70,6 @@ bool ObjectClass::InitInstance(Object *instance) {
   return true;
 }
 
-bool ObjectClass::InitType(TypeRepository *repo) {
-  return true;
-}
-
 PropertySpec *ObjectClass::FindPropertySpec(char const *name) const {
   ObjectClassInstance const *inst = class_instance();
   while (inst) {

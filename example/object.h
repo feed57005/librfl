@@ -117,10 +117,9 @@ public:
   }
 
 protected:
+  friend class TypeRepository;
   virtual bool InitInstance(Object *instance);
 
-  friend class TypeRepository;
-  virtual bool InitType(TypeRepository *repo);
   void InitObjectProperties(Object *obj);
 
 protected:

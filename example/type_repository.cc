@@ -35,8 +35,8 @@ bool TypeRepository::RegisterObjectClass(ObjectClass *klass) {
       new ObjectClassInstance(GetNextTypeId(), klass, parent);
 
   klass->type_class_instance_ = instance;
-  //klass->package_ = pkg;
   if (!klass->InitType(this)) {
+    klass->type_class_instance_ = nullptr;
     delete instance;
     return false;
   }
@@ -66,6 +66,13 @@ bool TypeRepository::RegisterEnumClass(EnumClass *enm) {
   TypeClassInstance *instance = new TypeClassInstance(GetNextTypeId(), enm);
   instance_map_.insert(std::make_pair(instance->type_id(), instance));
   name_map_.insert(std::make_pair(std::string(enm->enum_name()), instance));
+
+  enm->type_class_instance_ = instance;
+  if (!enm->InitType(this)) {
+    delete instance;
+    enm->type_class_instance_ = nullptr;
+    return false;
+  }
   return true;
 }
 

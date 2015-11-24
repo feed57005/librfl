@@ -10,6 +10,7 @@ typedef rfl::uint32 TypeId;
 
 class Package;
 class TypeClass;
+class TypeRepository;
 
 class EXAMPLE_EXPORT TypeClassInstance {
 public:
@@ -45,6 +46,10 @@ public:
   Package *package() const { return package_; }
 
   virtual Kind GetTypeClassKind() const = 0;
+
+protected:
+  friend class TypeRepository;
+  virtual bool InitType(TypeRepository *) { return true; }
 
 protected:
   friend class TypeRepository;

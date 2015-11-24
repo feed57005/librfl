@@ -9,15 +9,6 @@
 
 namespace test {
 
-typedef rfl_primitive()
-int TestInt;
-
-enum rfl_enum(kTest1 = "Test One",
-              kTest2 = "Test Two")
-TestEnum {
-  kTest1 = 0,
-  kTest2,
-};
 
 } // namespace test
 

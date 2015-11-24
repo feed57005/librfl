@@ -7,13 +7,21 @@
 
 #include "rfl/annotations.h"
 #include "example/object.h"
-#include "example/test_primitives.h"
 #include "example/example_export.h"
 
 #include <vector>
 
 namespace test {
 
+typedef rfl_primitive()
+int TestInt;
+
+enum rfl_enum(kTest1 = "Test One",
+              kTest2 = "Test Two")
+TestEnum {
+  kTest1 = 0,
+  kTest2,
+};
 typedef std::vector<std::string> StringArray;
 
 struct EXAMPLE_EXPORT rfl_primitive() Vector {
