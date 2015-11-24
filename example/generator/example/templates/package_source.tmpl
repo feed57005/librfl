@@ -1,0 +1,44 @@
+#include "{{package.package_id|lower}}.rfl.h"
+{% for inc in package.src_includes -%}
+#include {{inc}}
+{% endfor %}
+
+{{package.package_id}}::{{package.package_id}}() {}
+
+{{package.package_id}}::~{{package.package_id}}() {}
+
+bool {{package.package_id}}::RegisterPackage(example::TypeRepository *repo) {
+{% for enm in enums %}
+  {{package.package_id}}::Enums::{{enm.proto.name}} = new {{enm.qualified_class_name}}();
+  repo->RegisterEnumClass({{package.package_id}}::Enums::{{enm.proto.name}});
+{% endfor %}
+{% for klass in classes %}
+  {{package.package_id}}::Classes::{{klass.proto.name}} = new {{klass.qualified_class_name}}();
+  repo->RegisterObjectClass({{package.package_id}}::Classes::{{klass.proto.name}});
+{% endfor %}
+  return true;
+}
+
+bool {{package.package_id}}::UnregisterPackage(example::TypeRepository *repo) {
+{% for enm in enums %}
+  repo->UnregisterEnumClass({{package.package_id}}::Enums::{{enm.proto.name}});
+  delete {{package.package_id}}::Enums::{{enm.proto.name}};
+  {{package.package_id}}::Enums::{{enm.proto.name}} = nullptr;
+{% endfor %}
+{% for klass in classes %}
+  repo->UnregisterObjectClass({{package.package_id}}::Classes::{{klass.proto.name}});
+  delete {{package.package_id}}::Classes::{{klass.proto.name}};
+  {{package.package_id}}::Classes::{{klass.proto.name}} = nullptr;
+{% endfor %}
+  return true;
+}
+
+{%- if ctx.args.plugin %}
+
+extern "C" {{package.export_def}} example::Package *LoadPackage() {
+  static {{package.package_id}} *pkg = nullptr;
+  if (pkg == nullptr)
+    pkg = new {{package.package_id}}();
+  return pkg;
+}
+{% endif -%}

@@ -1,0 +1,157 @@
+{##############################################################################
+  Class
+##############################################################################}
+{%- macro ClassHeader(klass, parent='') %}
+{%- set class_name = klass.proto.name + 'Class' -%}
+class {{EXPORT_DEF}} {{parent}}{{class_name}} : public {{klass.base_class}}Class {
+{#
+  nested classes
+#}
+{%- if klass.classes -%}
+public:
+{% for nested in klass.classes %}
+{%- if nested.kind == 'class' -%}
+  class {{ nested.proto.name }}Class;
+{%- endif -%}
+{% endfor %}
+{% endif -%}
+{#
+  nested enums
+#}
+{%- if klass.enums -%}
+public:
+{% for nested in klass.enums %}
+  class {{nested.proto.name}}Class;
+{% endfor %}
+{% endif -%}
+public:
+  static example::TypeId ID;
+
+  {{class_name}}();
+  ~{{class_name}}() override;
+
+  example::Object *CreateInstance() override;
+  void ReleaseInstance(example::Object *obj) override;
+
+{%- if klass.fields %}
+
+  struct Properties {
+{%- for field in klass.fields %}
+    static char const * const {{field.id}};
+{%- endfor %}
+  };
+{%- endif %}
+
+{%- if klass.methods %}
+
+  struct Methods {
+{%- for method in klass.methods %}
+    static char const * const {{method.proto.name}};
+{%- endfor %}
+  };
+{%- endif %}
+
+protected:
+  explicit {{class_name}}(char const *name, example::TypeId parent_id);
+  bool InitType(example::TypeRepository *repo) override;
+  bool InitInstance(example::Object *obj) override;
+  void InitObjectProperties(example::Object *obj);
+
+{%- if klass.fields %}
+
+private:
+{%- for field in klass.fields %}
+  static example::PropertySpec *{{field.proto.name}};
+{%- endfor -%}
+{%- endif %}
+
+{%- if klass.methods %}
+
+private:
+{%- for method in klass.methods %}
+  static example::GenericCallDesc<{{klass.qualified_name}}, {{method.signature}}> {{method.proto.name}}_call_desc_;
+  static example::Method *{{method.proto.name}}_method_;
+{%- endfor -%}
+{%- endif %}
+};
+
+{%- if klass.classes %}
+
+{% for nested in klass.classes -%}
+{%- if nested.kind == 'class' -%}
+  {{ ClassHeader(nested, class_name+'::') }}
+{%- endif -%}
+{% endfor %}
+
+{% endif %}
+
+{%- if klass.enums %}
+
+{% for nested in klass.enums -%}
+  {{ EnumHeader(nested, class_name+'::') }}
+{% endfor %}
+
+{% endif %}
+{%- endmacro -%}
+
+{##############################################################################
+  Enum
+##############################################################################}
+{%- macro EnumHeader(enm, parent='') %}
+class {{parent}}{{enm.proto.name}}Class : public example::EnumClass {
+public:
+  static example::TypeId ID;
+
+  {{enm.proto.name}}Class();
+  ~{{enm.proto.name}}Class();
+
+protected:
+  bool InitType(example::TypeRepository *repo) override;
+};
+{%- endmacro -%}
+
+{##############################################################################
+  Namespace
+##############################################################################}
+{%- macro NamespaceHeader(ns) %}
+namespace {{ns.proto.name}} {
+
+{% for klass in ns.classes %}
+{%- if klass.kind == 'class' -%}
+{{ ClassHeader(klass) }}
+{% endif %}
+{% endfor %}
+{% for enm in ns.enums -%}
+{{ EnumHeader(enm) }}
+{% endfor -%}
+} // namespace {{ns.proto.name}}
+{%- endmacro -%}
+
+{##############################################################################
+  Contents
+##############################################################################}
+// Generated file, do not modify
+
+{%- set EXPORT_DEF = generator.package.export_def %}
+#ifndef {{package_file.h_guard}}
+#define {{package_file.h_guard}}
+
+{% for inc in package_file.h_includes -%}
+#include {{inc}}
+{% endfor -%}
+
+{% for klass in package_file.classes -%}
+{%- if klass.kind == 'class' -%}
+{{ ClassHeader(klass) }}
+{%- endif -%}
+{% endfor -%}
+
+{% for enm in package_file.enums -%}
+{{ EnumHeader(enm) }}
+{% endfor -%}
+
+{% for ns in package_file.namespaces -%}
+{{ NamespaceHeader(ns) }}
+{% endfor -%}
+
+#endif // {{package_file.h_guard}}

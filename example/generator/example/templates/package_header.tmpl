@@ -1,0 +1,37 @@
+// Generated file, do not modify
+
+{%- set EXPORT_DEF = generator.package.export_def %}
+
+#ifndef {{package.h_guard}}
+#define {{package.h_guard}}
+
+#include "{{package.export_h}}"
+#include "example/package.h"
+
+{% for inc in package.h_includes -%}
+#include {{inc}}
+{% endfor %}
+
+class {{package.export_def}} {{package.package_id}} : public example::Package {
+public:
+  {{package.package_id}}();
+  ~{{package.package_id}}() override;
+
+  bool RegisterPackage(example::TypeRepository *repo) override;
+  bool UnregisterPackage(example::TypeRepository *repo) override;
+
+  struct Enums {
+{%- for enm in enums %}
+    static {{enm.qualified_class_name}} *{{enm.proto.name}};
+{%- endfor %}
+  };
+
+  struct Classes {
+{%- for klass in classes %}
+    static {{klass.qualified_class_name}} *{{klass.proto.name}};
+{%- endfor %}
+  };
+
+};
+
+#endif // {{package.h_guard}}

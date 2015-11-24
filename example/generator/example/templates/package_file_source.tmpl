@@ -1,0 +1,168 @@
+{##############################################################################
+  Class
+##############################################################################}
+{%- macro ClassSrc(klass, parent='') %}
+{%- set class_name = klass.proto.name + 'Class' -%}
+{%- set class_decl = parent + klass.proto.name + 'Class' -%}
+example::TypeId {{class_decl}}::ID = -1;
+
+{{class_decl}}::{{class_name}}() : {{klass.base_class}}Class("{{klass.full_name}}", {{klass.base_class}}Class::ID) {}
+
+{{class_decl}}::{{class_name}}(char const *name, example::TypeId parent_id) : {{klass.base_class}}Class(name, parent_id) {}
+
+example::Object *{{class_decl}}::CreateInstance() {
+{%- if not 'abstract' in klass.annotation %}
+  return new {{klass.qualified_name}}();
+{%- else %}
+  return nullptr;
+{%- endif %}
+}
+
+void {{class_decl}}::ReleaseInstance(example::Object *obj) {
+{%- if not 'abstract' in klass.annotation %}
+  delete obj;
+{%- endif %}
+}
+
+bool {{class_decl}}::InitType(example::TypeRepository *repo) {
+#define CID {{class_decl}}::ID
+#define P {{class_decl}}::Properties
+#define M {{class_decl}}::Methods
+
+   CID = type_id();
+
+{%- if klass.fields %}
+
+  // Properties
+  {
+    using namespace example;
+
+    ObjectClassInstance *I = class_instance();
+{% for field in klass.fields -%}
+{%- set anno = field.annotation -%}
+{%- set type = field.type_name %}
+    {{class_decl}}::{{field.proto.name}} =
+{%- if field.kind == 'number' %}
+      new NumericPropertySpec<{{type}}>(P::{{field.id}}, "{{anno['name']}}", CID, AnyVar(({{type}})({{anno['default']}})), {{anno['min']}}, {{anno['max']}}, {{anno['step']}}, {{anno['page_step']}}, {{anno['page_size']}}, {{anno['precision']}});
+{% elif field.kind == 'enum' %}
+      new EnumPropertySpec(repo->GetEnumByName("{{type}}"), P::{{field.id}}, "{{anno['name']}}", {{type}}::{{anno['default']}});
+{% else %}
+      new PropertySpec(P::{{field.id}}, "{{anno['name']}}", CID, AnyVar({{field.any_value}}));
+{% endif -%}
+{# #}    I->AddPropertySpec({{field.proto.name}});
+{% endfor %}
+  }
+{%- endif %}
+
+{%- if klass.methods %}
+
+  // Methods
+  {
+    using namespace example;
+
+    ObjectClassInstance *I = class_instance();
+{% for method in klass.methods %}
+    {{class_decl}}::{{method.proto.name}}_method_ = new Method(M::{{method.proto.name}}, "{{method.annotation['name']}}", CID, &{{method.proto.name}}_call_desc_);
+    I->AddMethod({{class_decl}}::{{method.proto.name}}_method_);
+{% endfor %}
+  }
+{%- endif %}
+
+#undef CID
+#undef P
+#undef M
+
+  return true;
+}
+
+{%- if klass.fields %}
+
+// Properties
+{%- for field in klass.fields %}
+char const * const {{class_decl}}::Properties::{{field.id}} = "{{field.id}}";
+{%- endfor -%}
+{%- endif %}
+
+{%- if klass.methods %}
+
+// Methods
+{%- for method in klass.methods %}
+char const * const {{class_decl}}::Methods::{{method.proto.name}} = "{{method.proto.name}}";
+example::GenericCallDesc<{{klass.qualified_name}}, {{method.signature}}> {{class_decl}}::{{method.proto.name}}_call_desc_(&{{klass.proto.name}}::{{method.proto.name}}, "{{method.signature_descriptor}}");
+{%- endfor -%}
+{%- endif %}
+
+////////////////////////////////////////////////////////////////////////////////
+
+{% for nested in klass.classes %}
+{%- if nested.kind == 'class' -%}
+{{ ClassSrc(nested, class_name+'::') }}
+{%- endif -%}
+{% endfor %}
+{%- for nested in klass.enums -%}
+{{ EnumSrc(nested, class_name+'::') }}
+{%- endfor %}
+{%- endmacro -%}
+{##############################################################################
+  Enum
+##############################################################################}
+{%- macro EnumSrc(enm, parent = '') -%}
+{%- set enm_name = enm.proto.name + 'Class' -%}
+{%- set enm_decl = parent + enm.proto.name + 'Class' -%}
+example::TypeId {{enm_decl}}::ID = -1;
+
+{{enm_decl}}::{{enm_name}}() : EnumClass("{{enm.full_name}}") {
+{% for item in enm.items %}
+  AddItem(Item("{{item[0]}}", "{{item[2]}}", {{item[1]}}));
+{%- endfor %}
+}
+
+{{enm_decl}}::~{{enm_name}}() {}
+
+bool {{enm_decl}}::InitType(example::TypeRepository *repo) {
+  {{enm_decl}}::ID = type_id();
+  return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+{%- endmacro -%}
+
+{##############################################################################
+  Namespace
+##############################################################################}
+{%- macro NamespaceSrc(ns) %}
+namespace {{ns.proto.name}} {
+
+{% for enm in ns.enums -%}
+{{ EnumSrc(enm) }}
+{% endfor -%}
+{% for klass in ns.classes %}
+{%- if klass.kind == 'class' -%}
+{{ ClassSrc(klass) }}
+{%- endif -%}
+{% endfor %}
+} // namespace {{ns.proto.name}}
+{%- endmacro -%}
+
+{##############################################################################
+  Contents
+##############################################################################}
+// Generated file, do not modify
+{% for inc in package_file.src_includes -%}
+#include {{inc}}
+{% endfor -%}
+
+{% for klass in package_file.classes -%}
+{%- if klass.kind == 'class' -%}
+{{ ClassSrc(klass) }}
+{%- endif -%}
+{% endfor -%}
+
+{% for enm in package_file.enums -%}
+{{ EnumSrc(enm) }}
+{% endfor -%}
+
+{% for ns in package_file.namespaces -%}
+{{ NamespaceSrc(ns) }}
+{% endfor -%}
