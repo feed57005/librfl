@@ -136,16 +136,22 @@ void Scanner::LogDecl(NamedDecl *D) const {
   }
 }
 
-bool Scanner::ReadAnnotation(NamedDecl *D, proto::Annotation *anno) {
-  // Reflection attributes are stored as clang annotation attributes
+bool Scanner::HasAnnotation(NamedDecl *D) const {
   specific_attr_iterator<AnnotateAttr> i =
       D->specific_attr_begin<AnnotateAttr>();
   if (i == D->specific_attr_end<AnnotateAttr>()) {
     return false;
   }
+  return true;
+}
 
-// Get the annotation text
-  AnnotateAttr *attribute = *i;
+bool Scanner::ReadAnnotation(NamedDecl *D, proto::Annotation *anno) {
+  // Reflection attributes are stored as clang annotation attributes
+  if (!HasAnnotation(D))
+    return false;
+
+  // Get the annotation text
+  AnnotateAttr *attribute = *D->specific_attr_begin<AnnotateAttr>();
   StringRef attribute_text = attribute->getAnnotation();
 
   SourceLocation location = attribute->getLocation();
@@ -177,12 +183,12 @@ bool Scanner::ReadAnnotation(NamedDecl *D, proto::Annotation *anno) {
 
 bool Scanner::TraverseNamespaceDecl(NamespaceDecl *D) {
   // skip declarations not in this translation unit
-  if (src_manager().getFileID(current_file_location_) !=
-      src_manager().getFileID(D->getLocation()))
+  if (!IsCurrentFileLocation(D->getLocation()))
     return true;
 
   if (!Base::TraverseNamespaceDecl(D))
     return false;
+
   namespace_queue_.pop_front();
 
   return true;
@@ -201,27 +207,49 @@ bool Scanner::VisitNamespaceDecl(NamespaceDecl *D) {
   return true;
 }
 
-bool Scanner::TraverseCXXRecordDecl(CXXRecordDecl *D) {
-  // skip declarations not in this translation unit
-  if (src_manager().getFileID(current_file_location_) !=
-      src_manager().getFileID(D->getLocation()))
+bool Scanner::IsCurrentFileLocation(SourceLocation loc) const {
+  FileID current_file_id = src_manager().getFileID(current_file_location_);
+  // if location is not a macro compare FileIDs
+  if (!loc.isMacroID() && src_manager().getFileID(loc) == current_file_id)
     return true;
 
-  proto::Annotation anno;
-  if (!ReadAnnotation(D, &anno)) {
+  // otherwise check the expansion location
+  SourceLocation expansion = src_manager().getExpansionLoc(loc);
+  if (src_manager().getFileID(expansion) == current_file_id)
+    return true;
+  return false;
+}
+
+bool Scanner::TraverseCXXRecordDecl(CXXRecordDecl *D) {
+  if (!IsCurrentFileLocation(D->getLocation()) ||
+      D->isThisDeclarationADefinition() == VarDecl::DeclarationOnly) {
+    return true;
+  }
+
+  if (!HasAnnotation(D)) {
     return true;
   }
 
   if (!Base::TraverseCXXRecordDecl(D))
     return false;
 
-  proto::Class *klass = class_queue_.front();
-  klass->mutable_annotation()->CopyFrom(anno);
   class_queue_.pop_front();
   return true;
 }
 
 bool Scanner::VisitCXXRecordDecl(CXXRecordDecl *D) {
+  // skip declarations not in this translation unit
+  if (!IsCurrentFileLocation(D->getLocation())) {
+    return true;
+  }
+  proto::Annotation anno;
+  if (!ReadAnnotation(D, &anno)) {
+    return true;
+  }
+
+  LogDecl(D);
+  outs().flush();
+
   proto::Class *parent = CurrentClass();
   proto::Namespace *ns = nullptr;
   if (!parent) {
@@ -266,6 +294,7 @@ bool Scanner::VisitCXXRecordDecl(CXXRecordDecl *D) {
   }
   klass->set_name(D->getDeclName().getAsString());
   klass->set_order(class_count());
+  klass->mutable_annotation()->CopyFrom(anno);
   set_class_count(class_count() + 1);
   class_queue_.push_front(klass);
   package().add_provided_classes(D->getQualifiedNameAsString());
@@ -403,6 +432,12 @@ bool Scanner::ReadType(QualType qt,
     SourceLocation location = ED->getSourceRange().getBegin();
     tr->set_source_file(
         PathRelativeToBaseDir(location, src_manager(), basedir()));
+  } else if (PointerType::classof(t)) {
+    PrintingPolicy policy(context_->getLangOpts());
+    policy.SuppressTagKeyword = true;
+    policy.SuppressScope = false;
+    type_name = t->getAs<PointerType>()->getPointeeType().getAsString(policy);
+    tr->set_kind(proto::TypeRef_Kind_SYSTEM);
   } else {
     PrintingPolicy policy(context_->getLangOpts());
     policy.SuppressTagKeyword = true;
@@ -418,8 +453,7 @@ bool Scanner::ReadType(QualType qt,
 
 bool Scanner::VisitEnumDecl(EnumDecl *D) {
   // skip declarations not in this translation unit
-  if (src_manager().getFileID(current_file_location_) !=
-      src_manager().getFileID(D->getLocation()))
+  if (!IsCurrentFileLocation(D->getLocation()))
     return true;
 
   proto::Annotation anno;

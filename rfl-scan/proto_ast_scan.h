@@ -66,6 +66,9 @@ public:
   bool VisitEnumDecl(EnumDecl *D);
 
 private:
+  bool IsCurrentFileLocation(SourceLocation loc) const;
+  bool HasAnnotation(NamedDecl *D) const;
+
   bool ReadAnnotation(NamedDecl *D, proto::Annotation *anno);
   void LogDecl(NamedDecl *D) const;
 
