@@ -27,13 +27,15 @@ void ScanCompilationDatabase::cleanupCommands(std::vector<CompileCommand> &cmds,
                                               StringRef const &filename) const {
   // go through all commandlines and replace -c file with ours
   for (CompileCommand &cmd : cmds) {
-
     for (std::vector<std::string>::iterator it = cmd.CommandLine.begin();
          it != cmd.CommandLine.end();) {
       if (!it->empty() && it->compare("-c") == 0) {
         ++it;
         it->assign(filename);
-      } else {
+      } else if (it->compare("-gsplit-dwarf") == 0) {
+        it = cmd.CommandLine.erase(it);
+      }
+      else {
         ++it;
       }
     }
@@ -46,43 +48,44 @@ void ScanCompilationDatabase::cleanupCommands(std::vector<CompileCommand> &cmds,
 std::vector<CompileCommand> ScanCompilationDatabase::getCompileCommands(
     StringRef file) const {
   std::vector<CompileCommand> result = compilation_db_.getCompileCommands(file);
-  if (result.empty()) {
-    // check whether this is a header, if so, try to find .cc file
-    StringRef ext = sys::path::extension(file);
-    ArrayRef<char const *> hdr_exts(kHeaderExtensions);
-    ArrayRef<char const *> src_exts(kSourceExtensions);
-    for (ArrayRef<char const *>::const_iterator it = hdr_exts.begin();
-         it != hdr_exts.end();
-         ++it) {
-      if (ext.compare(*it) == 0) {
-        // header extensions match, so try to replace it with source ext.
-        for (ArrayRef<char const *>::const_iterator cit = src_exts.begin();
-             cit != src_exts.end();
-             ++cit) {
-          SmallString<1024> src_file(file);
-          sys::path::replace_extension(src_file, *cit);
-          result = compilation_db_.getCompileCommands(src_file);
-          if (result.size()) {
-            cleanupCommands(result,file);
-            return result;
-          }
+  if (!result.empty())
+    return result;
+
+  // check whether this is a header, if so, try to find .cc file
+  StringRef ext = sys::path::extension(file);
+  ArrayRef<char const *> hdr_exts(kHeaderExtensions);
+  ArrayRef<char const *> src_exts(kSourceExtensions);
+  for (ArrayRef<char const *>::const_iterator it = hdr_exts.begin();
+       it != hdr_exts.end();
+       ++it) {
+    if (ext.compare(*it) == 0) {
+      // header extensions match, so try to replace it with source ext.
+      for (ArrayRef<char const *>::const_iterator cit = src_exts.begin();
+           cit != src_exts.end();
+           ++cit) {
+        SmallString<1024> src_file(file);
+        sys::path::replace_extension(src_file, *cit);
+        result = compilation_db_.getCompileCommands(src_file);
+        if (result.size()) {
+          cleanupCommands(result,file);
+          return result;
         }
-        break;
       }
+      break;
     }
+  }
 
-    outs() << "No luck for: " << file << "\n";
-    outs().flush();
+  outs() << "No luck for: " << file << "\n";
+  outs().flush();
 
-    // Nothing found, try all other files
-    for (std::string const &src : source_files_) {
-      if (src.compare(file) == 0)
-        continue;
-      result = getCompileCommands(src);
-      if (!result.empty())
-        cleanupCommands(result,file);
-        return result;
-    }
+  // Nothing found, try all other files
+  for (std::string const &src : source_files_) {
+    if (src.compare(file) == 0)
+      continue;
+    result = getCompileCommands(src);
+    if (!result.empty())
+      cleanupCommands(result,file);
+      return result;
   }
   return result;
 }
