@@ -45,7 +45,6 @@ def Main():
 
     if not args.print_files:
         pkg = rfl.proto.Package()
-        print 'merging protos', args.inputs
         for proto in args.inputs:
             pb = open(proto, 'rb').read()
             input = rfl.proto.Package.FromString(pb[4:])
@@ -59,6 +58,13 @@ def Main():
             package = ctx.CreatePackage(pkg)
             generator = ctx.CreateGenerator()
             generator.Generate(package)
+
+        out_rfl = open(os.path.join(args.output_dir, pkg.name + '.rfl'), 'wb')
+        out_rfl.write(b'RFL')
+        out_rfl.write(b'\x01')
+        out_rfl.write(pkg.SerializeToString())
+        out_rfl.close()
+
     else:
         with rfl.generator.CreateContext(generator_module.Factory, args) as ctx:
             generator = ctx.CreateGenerator()

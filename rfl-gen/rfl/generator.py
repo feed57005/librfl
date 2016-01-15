@@ -5,6 +5,7 @@
 import os
 import errno
 import rfl
+import platform
 from jinja2 import Environment, ChoiceLoader, PackageLoader
 
 
@@ -18,6 +19,18 @@ def AnnotationToDict(anno):
 def QualifiedCXXNameToRfl(name):
     components = name.split('::')
     return '.'.join(components)
+
+
+def PlatformLibForName(name):
+    os_system = platform.system()
+    library = None
+    if os_system == 'Darwin':
+        library = 'lib%s.dylib' % name
+    elif os_system == 'Linux':
+        library = 'lib%s.so' % name
+    elif os_system == 'Windows':
+        library = '%s.dll' % name
+    return library
 
 
 class Method(object):
@@ -148,6 +161,10 @@ class Package(object):
         for pkg_file in proto.package_files:
             pkg_file_klass = rfl.generator.context.factory.PackageFile()
             self.package_files.append(pkg_file_klass(pkg_file, self))
+        self.library = PlatformLibForName(proto.name)
+        self.imports = []
+        for imp in proto.imports:
+            self.imports.append((imp, PlatformLibForName(imp)))
 
     def GetPackageClasses(self):
         klasses = []
@@ -170,8 +187,51 @@ class Package(object):
                         enums.append(klass)
                     if hasattr(current, 'namespaces') and current.namespaces:
                         stack[0:0] = current.namespaces
-        klasses.sort(key=lambda x: x.proto.order)
+        klasses = self.SortClasses(klasses)
         return enums, klasses
+
+    def SortClasses(self, klasses):
+        klass_dict = \
+            {klass.qualified_name: [klass, 0] for klass in klasses}
+        order = 1
+        stack = []
+        for klass in klasses:
+            stack.insert(0, klass.qualified_name)
+            while stack:
+                k = klass_dict[stack.pop(0)][0]
+                if klass_dict[k.qualified_name][1] == 2:
+                    continue
+                klass_dict[k.qualified_name][1] = 1
+                if (not k.proto.HasField('base_class') or
+                    (k.proto.base_class.type_name in klass_dict and
+                     klass_dict[k.proto.base_class.type_name][1])):
+                    k.proto.order = order
+                    klass_dict[k.qualified_name][1] = 2
+                    order += 1
+                    continue
+
+                if k.proto.base_class.type_name in klass_dict:
+                    stack.insert(0, k.qualified_name)
+                    stack.insert(0, k.proto.base_class.type_name)
+                    continue
+
+                visit_fields = []
+                for field in k.fields:
+                    if (field.type_name in klass_dict and not
+                            klass_dict[field.type_name][1]):
+                        visit_fields.append(field.type_name)
+                if visit_fields:
+                    stack.insert(0, k.qualified_name)
+                    stack = visit_fields + stack
+                    continue
+                else:
+                    klass_dict[k.qualified_name][1] = 2
+                    k.proto.order = order
+                    order += 1
+                    continue
+
+        klasses.sort(key=lambda x: x.proto.order)
+        return klasses
 
 ################################################################################
 
