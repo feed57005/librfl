@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.8)
 include (umake/UMakeInit.cmake)
 include (umake/UMakePackaging.cmake)
 
-option (BUILD_TESTS "Build tests" ON)
+option (BUILD_TESTS "Build tests" OFF)
 
 add_subdirectory (third_party/protobuf)
 if (BUILD_TESTS)

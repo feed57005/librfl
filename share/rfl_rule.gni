@@ -1,0 +1,282 @@
+if (is_win) {
+  _host_shlib_suffix = ".dll"
+} else if (is_mac) {
+  _host_shlib_suffix = ".dylib"
+} else if (is_posix) {
+  _host_shlib_suffix = ".so"
+}
+
+template("rfl_proto_scan") {
+  assert(defined(invoker.version), "Version must be provided")
+  assert(defined(invoker.sources), "Sources must be provided")
+
+  id = target_name
+  rfl_tool = "//tools/librfl/share/librfl/rfl_tool.py"
+
+  action_foreach("${target_name}_rfl_proto_scan") {
+    script = rfl_tool
+    sources = invoker.sources
+    inputs = [ "$root_build_dir/compile_commands.json" ]
+
+    args = [ "scan",
+      rebase_path(root_build_dir),
+      "-basedir", rebase_path("//"),
+      "-pkg-name", id,
+      "-pkg-version", invoker.version,
+      "-p", rebase_path(root_build_dir),
+      "-proto",
+      "-o", rebase_path("$target_gen_dir/{{source_root_relative_dir}}/{{source_file_part}}.rfl"),
+      #"-verbose=2",
+    ]
+
+    if (defined(invoker.generate_plugin) && invoker.generate_plugin) {
+      args += [ "-plugin" ]
+    }
+
+    args += ["{{source}}"]
+
+    deps = [ "//:compilation_db" ]
+    if (defined(invoker.rfl_imports)) {
+      foreach(imp, invoker.rfl_imports) {
+        args += ["-i", get_label_info(imp, "name")]
+        deps += [ imp ]
+      }
+    }
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+
+    outputs = [ "$target_gen_dir/{{source_root_relative_dir}}/{{source_file_part}}.rfl" ]
+  }
+}
+
+template("rfl_gen") {
+  assert(defined(invoker.version), "Version must be provided")
+  assert(defined(invoker.sources), "Sources must be provided")
+  assert(defined(invoker.generator), "Generator must be provided")
+
+  id = target_name
+  rfl_gen_py = "//tools/librfl/bin/rfl-gen/rfl-gen.py"
+
+  # gather generated files
+  gather_args = [
+    "-g", rebase_path(invoker.generator),
+    "-o", "$target_gen_dir",
+    "--pkg-name", id,
+    "--pkg-version", invoker.version,
+    "--print-files",
+    "-i",
+  ]
+  gather_args += rebase_path(invoker.sources, "//")
+  if (defined(invoker.generate_plugin) && invoker.generate_plugin) {
+    gather_args += [ "--plugin" ]
+  }
+  generated_files =
+    exec_script(rfl_gen_py, gather_args, "list lines")
+
+  action(target_name + "_rfl_gen") {
+    script = rfl_gen_py
+    inputs = invoker.sources
+    if (defined(invoker.generator_sources)) {
+      inputs += invoker.generator_sources
+    }
+    args = [
+      "-g", rebase_path(invoker.generator),
+      "-o", rebase_path(target_gen_dir),
+      "--pkg-name", id,
+      "--pkg-version", invoker.version,
+
+      "-i"
+    ]
+    args += rebase_path(get_target_outputs(":${id}_rfl_proto_scan"))
+    if (defined(invoker.generate_plugin) && invoker.generate_plugin) {
+      args += [ "--plugin" ]
+    }
+    deps = [ ":${id}_rfl_proto_scan" ]
+    outputs = generated_files
+  }
+}
+
+################################################################################
+
+#template("rfl_scan") {
+#  assert(defined(invoker.version), "Version must be provided")
+#  assert(defined(invoker.sources), "Sources must be provided")
+#  assert(defined(invoker.generator), "Generator must be provided")
+#
+#  id = target_name
+#  rfl_tool =  "//tools/librfl/share/librfl/rfl_tool.py"
+#
+#  generator_target = invoker.generator + "($host_toolchain)"
+#  generator_lib = get_label_info(generator_target, "root_out_dir") + "/lib" +
+#                  get_label_info(generator_target, "name") + _host_shlib_suffix
+#
+#  config("${target_name}_rfl_includes") {
+#    include_dirs = [target_gen_dir]
+#  }
+#
+#  action("${target_name}_rfl_scan") {
+#    script = rfl_tool
+#    sources = invoker.sources
+#
+#    args = [ "scan",
+#      rebase_path(root_build_dir),
+#      "-basedir", rebase_path("//"),
+#      "-output-dir", rebase_path(target_gen_dir),
+#      "-pkg-name", id,
+#      "-pkg-version", invoker.version,
+#      "-p", rebase_path(root_build_dir),
+#      "-G", rebase_path(generator_lib),
+#      #"-o", rebase_path("$target_gen_dir/" + id + ".outputs", root_build_dir),
+#      #"-verbose=3",
+#      ]
+#
+#    if (invoker.generate_plugin) {
+#      args += [ "-plugin" ]
+#    }
+#
+#    args += rebase_path(invoker.sources)
+#
+#    deps = [ generator_target ]
+#    if (defined(invoker.rfl_imports)) {
+#      foreach(imp, invoker.rfl_imports) {
+#        args += ["-i", get_label_info(imp, "name")]
+#        deps += [ imp ]
+#      }
+#    }
+#
+#    outputs = process_file_template(invoker.sources,
+#      "$target_gen_dir/{{source_root_relative_dir}}/{{source_file_part}}.rfl.cc")
+#    outputs += process_file_template(invoker.sources,
+#      "$target_gen_dir/{{source_root_relative_dir}}/{{source_file_part}}.rfl.h")
+#    outputs += [
+#      "$target_gen_dir/${id}_export.rfl.h",
+#      "$target_gen_dir/${id}.rfl.cc",
+#      "$target_gen_dir/${id}.rfl.h",
+#    ]
+#
+#    if (invoker.generate_plugin) {
+#      outputs += [
+#        "$target_gen_dir/${id}.ini",
+#      ]
+#    }
+#  }
+#}
+
+template("rfl_package") {
+  id = target_name
+  dir = invoker.plugin_dir
+  copy("${target_name}_pkg") {
+    deps = [":${id}_rfl_gen", ":$id"]
+    sources = ["$target_gen_dir/${id}.ini"]
+    if (is_mac) {
+      sources += ["$root_build_dir/lib${id}.dylib"]
+    }
+    outputs = ["$root_build_dir/${dir}/${id}/{{source_file_part}}"]
+  }
+  if (defined(invoker.plugin_resources)) {
+    copy("${target_name}_pkg_res") {
+      sources = invoker.plugin_resources
+      outputs = ["$root_build_dir/${dir}/${id}/resources/{{source_file_part}}"]
+      if (defined(invoker.plugin_resources_deps)) {
+        deps = invoker.plugin_resources_deps
+      }
+    }
+  }
+}
+
+template("rfl_library") {
+  assert(defined(invoker.version), "'version' must be provided")
+  assert(defined(invoker.sources), "'sources' must be provided")
+  assert(defined(invoker.rfl_sources), "'rfl_sources' must be provided")
+  assert(defined(invoker.generator), "'generator' must be provided")
+
+  if (!defined(invoker.generate_plugin)) {
+    is_plugin = true
+  } else {
+    is_plugin = invoker.generate_plugin
+  }
+
+  rfl_proto_scan(target_name) {
+    version = invoker.version
+    sources = invoker.rfl_sources
+    generate_plugin = is_plugin
+    if (defined(invoker.rfl_imports)) {
+      rfl_imports = invoker.rfl_imports
+    }
+    if (defined(invoker.deps)) {
+      deps = invoker.deps
+    }
+  }
+
+  rfl_gen(target_name) {
+    version = invoker.version
+    sources = invoker.rfl_sources
+    generator = invoker.generator
+    generate_plugin = is_plugin
+    if (defined(invoker.generator_sources)) {
+      generator_sources = invoker.generator_sources
+    }
+  }
+
+  config("${target_name}_rfl_includes") {
+    include_dirs = [ target_gen_dir ]
+  }
+
+  shared_library(target_name) {
+    gen_label = ":${target_name}_rfl_gen"
+    cfg_label = ":${target_name}_rfl_includes"
+
+    sources = get_target_outputs(gen_label)
+    configs += [ cfg_label ]
+    public_configs = [ cfg_label ]
+    deps = [ gen_label ]
+    public_deps = []
+    libs = []
+    defines = []
+
+    if (defined(invoker.sources)) {
+      sources += invoker.sources
+    }
+    if (defined(invoker.configs)) {
+      configs += invoker.configs
+    }
+    if (defined(invoker.public_configs)) {
+      public_configs += invoker.public_configs
+    }
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+    if (defined(invoker.public_deps)) {
+      public_deps += invoker.public_deps
+    }
+    if (defined(invoker.libs)) {
+      libs += invoker.libs
+    }
+    if (defined(invoker.defines)) {
+      defines += invoker.defines
+    }
+    if (defined(invoker.rfl_imports)) {
+      deps += invoker.rfl_imports
+      foreach(imp, invoker.rfl_imports) {
+        configs += [imp + "_rfl_includes" ]
+      }
+    }
+    if (defined(invoker.rfl_resources_deps)) {
+      deps += invoker.rfl_resources_deps
+    }
+  }
+
+  if (is_plugin) {
+    rfl_package(target_name) {
+      plugin_dir = "plugins"
+      if (defined(invoker.rfl_resources)) {
+        plugin_resources = invoker.rfl_resources
+      }
+      if (defined(invoker.rfl_resources_deps)) {
+        plugin_resources_deps = invoker.rfl_resources_deps
+      }
+    }
+  }
+}
+
