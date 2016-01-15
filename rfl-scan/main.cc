@@ -32,6 +32,10 @@
 #include <fstream>
 #include <algorithm>
 
+#if !defined(_LIBCPP_VERSION)
+#error "libc++ not present"
+#endif
+
 using namespace clang::driver;
 using namespace clang::tooling;
 using namespace llvm;
@@ -106,7 +110,7 @@ static std::string NormalizedPath(std::string const &path) {
 }
 
 ArgumentsAdjuster GetInsertAdjuster(std::string const &extra) {
-  return [extra] (CommandLineArguments const &args){
+  return [extra] (CommandLineArguments const &args, StringRef /*unused*/){
     CommandLineArguments ret(args);
     ret.insert(ret.end(), extra);
     return ret;

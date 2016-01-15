@@ -116,6 +116,7 @@ function (add_module mid)
     ${${OS}_DEFINES}
     ${dep_defines}
     ${${mid}_DEFINES}
+    ${${mid}_PUBLIC_DEFINES}
     )
 
   #message("${mid} - ${defines}")
