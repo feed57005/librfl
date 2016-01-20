@@ -25,5 +25,3 @@ include (project_info.cmake)
 if (NOT PROJECT_NAME)
   message (FATAL_ERROR "PROJECT_NAME not set in project_info.cmake")
 endif ()
-
-project (${PROJECT_NAME})

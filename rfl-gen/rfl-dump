@@ -4,8 +4,12 @@
 # found in the LICENSE file.
 
 import sys
-import rfl.proto
+import os
 
+sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), '..', 'lib', 'rfl-gen'))
+
+import rfl.proto
 
 def Main():
     if len(sys.argv) < 2:

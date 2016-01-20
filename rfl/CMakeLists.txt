@@ -2,7 +2,7 @@ find_package (LLVM REQUIRED COMPONENTS "support")
 include_directories (${LLVM_INCLUDE_DIRS})
 link_directories (${LLVM_LIBRARY_DIRS})
 
-set(proto_dir ${CMAKE_CURRENT_SOURCE_DIR}/proto)
+set(proto_dir ${LIBRFL_SRC_DIR}/rfl/proto)
 add_custom_command(
   OUTPUT reflected.pb.cc reflected.pb.h
   COMMAND protoc -I ${proto_dir} ${proto_dir}/reflected.proto --cpp_out=${CMAKE_CURRENT_BINARY_DIR} --python_out=${CMAKE_CURRENT_BINARY_DIR}

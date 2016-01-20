@@ -32,7 +32,7 @@ function (add_module mid)
   if (APPLE)
     # .app bundle icons
     if (target_type STREQUAL "app")
-      set (icns_file ${CMAKE_SOURCE_DIR}/build/umake/resources/application.icns)
+      set (icns_file ${CMAKE_CURRENT_SOURCE_DIR}/build/umake/resources/application.icns)
       if (${mid}_MACOSX_BUNDLE_ICON)
         set (icns_file ${${mid}_MACOSX_BUNDLE_ICON})
       endif ()
@@ -80,12 +80,12 @@ function (add_module mid)
           unset (outdir)
         endif ()
         add_custom_command(TARGET ${mid} POST_BUILD
-          COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/$<CONFIGURATION>/bin${outdir})
+          COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin${outdir})
 
         # copy resources to place
         foreach (output ${${cust_dep}_OUTPUTS})
           add_custom_command(TARGET ${mid} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy ${output} ${CMAKE_BINARY_DIR}/$<CONFIGURATION>/bin${outdir})
+            COMMAND ${CMAKE_COMMAND} -E copy ${output} ${CMAKE_BINARY_DIR}/bin${outdir})
         endforeach ()
     endforeach ()
   endif ()
@@ -181,9 +181,9 @@ function (set_module_output_directories mid bin arch lib)
     endforeach ()
   else ()
     set_target_properties (${mid} PROPERTIES
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${bin}"
-      ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${arch}"
-      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${lib}"
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${bin}"
+      ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${arch}"
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${lib}"
       )
   endif ()
 endfunction ()
