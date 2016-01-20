@@ -119,7 +119,7 @@ class Field(rfl.generator.Field):
                 self.annotation['precision'] = 2 if is_floating else 0
         elif self.kind != 'enum':
             if proto.type_qualifier.is_pointer:
-                self.any_value = "(%s)" % self.type_name
+                self.any_value = "(%s *)" % self.type_name
                 if 'default' not in self.annotation:
                     self.annotation['default'] = 'nullptr'
             elif proto.type_qualifier.is_const:
