@@ -20,9 +20,8 @@ if (BUILD_TESTS)
   add_subdirectory (third_party/test)
 endif ()
 
-if (STANDALONE_BUILD AND (COMPILER_CLANG OR COMPILER_GCC) )
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -stdlib=libc++ -std=c++11" CACHE INTERNAL "" FORCE )
-endif ()
+set (CLANG_COMPILE_FLAGS "-fPIC -fno-rtti -fno-exceptions -stdlib=libc++ -std=c++11")
+set (GCC_COMPILE_FLAGS "${CLANG_COMPILE_FLAGS}")
 
 include_directories (${LIBRFL_SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 

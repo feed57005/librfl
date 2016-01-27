@@ -1,6 +1,19 @@
-find_package (LLVM REQUIRED COMPONENTS "support")
-include_directories (${LLVM_INCLUDE_DIRS})
-link_directories (${LLVM_LIBRARY_DIRS})
+if (STANDALONE_BUILD)
+  find_package (LLVM REQUIRED COMPONENTS "support")
+  include_directories (${LLVM_INCLUDE_DIRS})
+  link_directories (${LLVM_LIBRARY_DIRS})
+else ()
+  include_directories("${CMAKE_SOURCE_DIR}/include"
+                      "${CMAKE_SOURCE_DIR}/tools/clang/include"
+                      "${CMAKE_BINARY_DIR}/include"
+                      "${CMAKE_BINARY_DIR}/tools/clang/include")
+
+  link_directories("${CMAKE_SOURCE_DIR}/lib"
+                   "${CMAKE_SOURCE_DIR}/tools/clang/lib"
+                   "${CMAKE_BINARY_DIR}/lib"
+                   "${CMAKE_BINARY_DIR}/tools/clang/lib")
+  llvm_map_components_to_libnames(LLVM_LIBRARIES Support )
+endif ()
 
 set(proto_dir ${LIBRFL_SRC_DIR}/rfl/proto)
 add_custom_command(

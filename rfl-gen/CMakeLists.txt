@@ -18,7 +18,7 @@ add_custom_target(rfl-gen ALL
   COMMAND ${CMAKE_COMMAND} -E make_directory ${libdir}/google/protobuf/compiler
   COMMAND protoc -I ${protobuf_dir}/src -I ${proto_dir}/compiler --python_out=${libdir}/google/protobuf/compiler ${proto_dir}/compiler/plugin.proto
   COMMAND ${CMAKE_COMMAND} -E touch ${libdir}/google/protobuf/compiler/__init__.py
-  DEPENDS protoc ${LIBRFL_SRC_DIR}/rfl/proto/reflected.proto
+  DEPENDS protoc rfl ${LIBRFL_SRC_DIR}/rfl/proto/reflected.proto
   )
 
 install(FILES

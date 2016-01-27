@@ -1,7 +1,20 @@
-find_package (LLVM REQUIRED COMPONENTS "support" "asmparser" "bitreader" "mc" "mcparser" "option")
+if (STANDALONE_BUILD)
+  find_package (LLVM REQUIRED COMPONENTS "support" "asmparser" "bitreader" "mc" "mcparser" "option")
 
-include_directories (${LLVM_INCLUDE_DIRS})
-link_directories (${LLVM_LIBRARY_DIRS})
+  include_directories (${LLVM_INCLUDE_DIRS})
+  link_directories (${LLVM_LIBRARY_DIRS})
+else ()
+  include_directories("${CMAKE_SOURCE_DIR}/include"
+                      "${CMAKE_SOURCE_DIR}/tools/clang/include"
+                      "${CMAKE_BINARY_DIR}/include"
+                      "${CMAKE_BINARY_DIR}/tools/clang/include")
+
+  link_directories("${CMAKE_SOURCE_DIR}/lib"
+                   "${CMAKE_SOURCE_DIR}/tools/clang/lib"
+                   "${CMAKE_BINARY_DIR}/lib"
+                   "${CMAKE_BINARY_DIR}/tools/clang/lib")
+  llvm_map_components_to_libnames(LLVM_LIBRARIES Support BitReader MCParser Option X86AsmParser)
+endif ()
 
 set (rfl-scan_SOURCES
   annotation_parser.cc
@@ -16,34 +29,12 @@ set (rfl-scan_SOURCES
   )
 set (rfl-scan_TARGET_TYPE executable)
 set (implicit "")
-
-# FIXME grab implicit includes by running compiler
-#   clang++ -E -x c++ - -v < /dev/null
-#   g++ -E -x c++ - -v < /dev/null
-set (implicit_includes "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}")
-if (OS_LINUX)
-  list (APPEND implicit_includes
-    /usr/include/x86_64-linux-gnu
-    /usr/lib/gcc/x86_64-linux-gnu/4.7/include
-    /usr/lib/gcc/x86_64-linux-gnu/4.7/include-fixed
-    )
-elseif (OS_MAC)
-  set (toolchain_path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain)
-  list (APPEND implicit_includes
-    ${toolchain_path}/usr/include/c++/v1
-    ${toolchain_path}/usr/lib/clang/6.0/include/
-    ${toolchain_path}/usr/lib/clang/6.1.0/include/
-    ${toolchain_path}/usr/include
-    )
-endif ()
-
 set (implicit_includes)
 set (implicit)
 
 foreach (impl ${implicit_includes})
   set (implicit "${implicit} -I${impl}")
 endforeach ()
-message ("xXX ${implicit}")
 set (rfl-scan_DEFINES "IMPLICIT=\"${implicit}\"")
 
 set (CMAKE_CXX_FLAGS "-fno-rtti -fno-exceptions ${LLVM_CXX_FLAGS} -Wno-strict-aliasing")
@@ -68,7 +59,9 @@ set (rfl-scan_LIBS
   clangBasic
   ${LLVM_LIBRARIES}
   )
+
 add_module (rfl-scan)
+
 if (OS_MAC)
   set (rpath "@executable_path/../lib")
 elseif (OS_LINUX)
