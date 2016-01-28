@@ -37,6 +37,4 @@ install (FILES
     share/FindLibRFL.cmake
     share/RFLMacros.cmake
     share/UseRFL.cmake
-    share/rfl_rule.gni
-    share/rfl_tool.py
   DESTINATION share/librfl)
