@@ -400,18 +400,31 @@ bool Scanner::ReadType(QualType qt,
   std::string type_name;
   llvm::raw_string_ostream os(type_name);
 
-  // get underlying type for typedefs
-  if (TypedefType::classof(t)) {
+  if (verbose() > 1) {
+    llvm::outs() << t->getTypeClassName() << "\n";
+    llvm::outs().flush();
+  }
+
+  if (BuiltinType::classof(t)) {
+    PrintingPolicy policy(context_->getLangOpts());
+    policy.SuppressTagKeyword = true;
+    policy.SuppressScope = false;
+    type_name = qt.getAsString(policy);
+    tr->set_kind(proto::TypeRef_Kind_SYSTEM);
+  } else if (TypedefType::classof(t)) {
+    // Get underlying type for typedefs
     TypedefNameDecl *TD = t->getAs<TypedefType>()->getDecl();
+
+    // TODO we should traverse underlying types until we find a public one
+    tr->set_underlying_type(TD->getUnderlyingType().getAsString());
+
     if (TD->isCXXClassMember() && TD->getAccess() != AS_public) {
-      // this is private typedef inside class, get underlying type
-      // TODO maybe we should traverse underlying types until we find a
-      // public one
-      type_name = TD->getUnderlyingType().getAsString();
+      // this is private typedef inside class, use the underlying type
+      type_name = TD->getUnderlyingType().getAsString();  // TODO
     } else {
-        // this is public typedef inside class, get fully qualified name
-        TD->printQualifiedName(os);
-        os.flush();
+      // this is public typedef, get fully qualified name
+      TD->printQualifiedName(os);
+      os.flush();
     }
   } else if (RecordType::classof(t)) {
     RecordDecl *RD = t->getAs<RecordType>()->getDecl();
@@ -422,6 +435,8 @@ bool Scanner::ReadType(QualType qt,
     SourceLocation location = RD->getSourceRange().getBegin();
     tr->set_source_file(
         PathRelativeToBaseDir(location, src_manager(), basedir()));
+  } else if (ElaboratedType::classof(t)) {
+    return ReadType(t->getAs<ElaboratedType>()->getNamedType(), tr,tq);
   } else if (EnumType::classof(t)) {
     EnumDecl *ED = t->getAs<EnumType>()->getDecl();
     llvm::raw_string_ostream os(type_name);
@@ -443,7 +458,7 @@ bool Scanner::ReadType(QualType qt,
     policy.SuppressTagKeyword = true;
     policy.SuppressScope = false;
     type_name = qt.getAsString(policy);
-    tr->set_kind(proto::TypeRef_Kind_SYSTEM);
+    tr->set_kind(proto::TypeRef_Kind_INVALID);
   }
 
   tr->set_type_name(type_name.c_str());

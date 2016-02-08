@@ -19,10 +19,12 @@ message TypeRef {
     SYSTEM = 1;
     ENUM = 2;
     CLASS = 3;
+    TYPEDEF = 4;
   }
   optional Kind kind = 1;
   optional string type_name = 2;
   optional string source_file = 3;
+  optional string underlying_type = 4;
 }
 
 message TypeQualifier {
