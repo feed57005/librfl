@@ -67,6 +67,20 @@ class Enum(object):
         self.qualified_name = '::'.join(names)
         self.package_file = p
 
+        # Build namespace list
+        if isinstance(parent, Class):
+            ns = parent.parent
+        else:
+            ns = parent
+        ns_klass = rfl.generator.context.factory.Namespace()
+        self.namespace = []
+        while ns:
+            self.namespace.insert(0, ns.proto.name)
+            if ns.parent.__class__ == ns_klass:
+                ns = ns.parent
+            else:
+                ns = None
+
 
 class TypeContainer(object):
     def __init__(self, proto, parent):
@@ -108,6 +122,7 @@ class Class(TypeContainer):
         self.kind = proto.annotation.kind
         self.annotation = AnnotationToDict(proto.annotation)
 
+        # Build namespace list
         if isinstance(parent, Class):
             # TODO while parent is class
             ns = parent.parent
@@ -280,7 +295,7 @@ class Generator(object):
     def GeneratePackage(self, pkg):
         raise NotImplemented("Must be overriden")
 
-    def GetOutputFiles(self, name, version, inputs):
+    def GetOutputFiles(self, pkg):
         raise NotImplemented("Must be overriden")
 
 

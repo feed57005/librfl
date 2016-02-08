@@ -24,6 +24,8 @@ def Main():
                         help='Output directory')
     parser.add_argument('-p', '--print-files', action='store_true',
                         help='Print output files')
+    parser.add_argument('-m', '--merge', action='store_true',
+                        help='Merge input files')
     parser.add_argument('--pkg-name',
                         help='Package Name')
     parser.add_argument('--pkg-version',
@@ -46,7 +48,11 @@ def Main():
         print e, generator_path, generator_module_name
         return 1
 
-    if not args.print_files:
+    if args.merge:
+        output_file = os.path.join(args.output_dir, args.pkg_name + '.rfl')
+        if args.print_files:
+            print output_file
+            return 0
         pkg = rfl.proto.Package()
         for proto in args.inputs:
             pb = open(proto, 'rb').read()
@@ -56,25 +62,39 @@ def Main():
             else:
                 print 'Package names does not match', input.name, pkg.name
                 return 1
-
-        with rfl.generator.CreateContext(generator_module.Factory, args) as ctx:
-            package = ctx.CreatePackage(pkg)
-            generator = ctx.CreateGenerator()
-            generator.Generate(package)
-
-        out_rfl = open(os.path.join(args.output_dir, pkg.name + '.rfl'), 'wb')
+        out_rfl = open(output_file, 'wb')
         out_rfl.write(b'RFL')
         out_rfl.write(b'\x01')
         out_rfl.write(pkg.SerializeToString())
         out_rfl.close()
+        return 0
 
+    pkg = None
+    if len(args.inputs) > 1:
+        pkg = rfl.proto.Package()
+        for proto in args.inputs:
+            pb = open(proto, 'rb').read()
+            input = rfl.proto.Package.FromString(pb[4:])
+            if not pkg.name or pkg.name == input.name:
+                pkg.MergeFrom(input)
+            else:
+                print 'Package names does not match', input.name, pkg.name
+                return 1
     else:
-        with rfl.generator.CreateContext(generator_module.Factory, args) as ctx:
-            generator = ctx.CreateGenerator()
-            outs = generator.GetOutputFiles(args.pkg_name, args.pkg_version,
-                                            args.inputs)
+        pb = open(args.inputs[0], 'rb').read()
+        pkg = rfl.proto.Package.FromString(pb[4:])
+
+    with rfl.generator.CreateContext(generator_module.Factory, args) as ctx:
+        package = ctx.CreatePackage(pkg)
+        generator = ctx.CreateGenerator()
+        if not args.print_files:
+            generator.Generate(package)
+            return 0
+        else:
+            outs = generator.GetOutputFiles(package)
             for out in outs:
                 print out
+            return 0
 
     return 0
 
