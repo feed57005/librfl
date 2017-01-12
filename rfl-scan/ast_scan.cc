@@ -306,7 +306,7 @@ bool ASTScanner::_TraverseCXXRecord(CXXRecordDecl *D) {
     for (CXXBaseSpecifier const &base : D->bases()) {
       QualType qt = base.getType();
 
-      Type const *type = qt.getTypePtrOrNull();
+      clang::Type const *type = qt.getTypePtrOrNull();
       if (!type) {
         continue;
       }
@@ -405,7 +405,7 @@ bool ASTScanner::_TraverseFieldDecl(FieldDecl *D) {
   if (D->getTypeSourceInfo() &&
       !D->getTypeSourceInfo()->getTypeLoc().isNull()) {
     QualType qt = D->getType();
-    Type const *t = qt.getTypePtrOrNull();
+    clang::Type const *t = qt.getTypePtrOrNull();
     if (t) {
       tq.set_is_pointer(t->isPointerType());
       tq.set_is_ref(t->isReferenceType());

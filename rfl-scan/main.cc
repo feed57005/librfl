@@ -310,7 +310,7 @@ int LegacyScanner(ClangTool &tool,
 }
 
 int main(int argc, char const **argv) {
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
 
   CommonOptionsParser options_parser(argc, argv, RflScanCategory);
 

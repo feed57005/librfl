@@ -268,7 +268,7 @@ bool Scanner::VisitCXXRecordDecl(CXXRecordDecl *D) {
     for (CXXBaseSpecifier const &base : D->bases()) {
       QualType qt = base.getType();
 
-      Type const *type = qt.getTypePtrOrNull();
+      clang::Type const *type = qt.getTypePtrOrNull();
       if (!type) {
         continue;
       }
@@ -386,7 +386,7 @@ bool Scanner::VisitCXXMethodDecl(CXXMethodDecl *D) {
 bool Scanner::ReadType(QualType qt,
                        proto::TypeRef *tr,
                        proto::TypeQualifier *tq) {
-  Type const *t = qt.getTypePtrOrNull();
+  clang::Type const *t = qt.getTypePtrOrNull();
   if (t) {
     tq->set_is_pointer(t->isPointerType());
     tq->set_is_ref(t->isReferenceType());
@@ -447,11 +447,11 @@ bool Scanner::ReadType(QualType qt,
     SourceLocation location = ED->getSourceRange().getBegin();
     tr->set_source_file(
         PathRelativeToBaseDir(location, src_manager(), basedir()));
-  } else if (PointerType::classof(t)) {
+  } else if (clang::PointerType::classof(t)) {
     PrintingPolicy policy(context_->getLangOpts());
     policy.SuppressTagKeyword = true;
     policy.SuppressScope = false;
-    type_name = t->getAs<PointerType>()->getPointeeType().getAsString(policy);
+    type_name = t->getAs<clang::PointerType>()->getPointeeType().getAsString(policy);
     tr->set_kind(proto::TypeRef_Kind_SYSTEM);
   } else {
     PrintingPolicy policy(context_->getLangOpts());
