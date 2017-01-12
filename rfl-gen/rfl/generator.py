@@ -295,7 +295,7 @@ class Generator(object):
     def GeneratePackage(self, pkg):
         raise NotImplemented("Must be overriden")
 
-    def GetOutputFiles(self, pkg):
+    def GetOutputFiles(self, name, version, inputs):
         raise NotImplemented("Must be overriden")
 
 

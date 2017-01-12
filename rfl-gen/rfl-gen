@@ -70,28 +70,30 @@ def Main():
         return 0
 
     pkg = None
-    if len(args.inputs) > 1:
-        pkg = rfl.proto.Package()
-        for proto in args.inputs:
-            pb = open(proto, 'rb').read()
-            input = rfl.proto.Package.FromString(pb[4:])
-            if not pkg.name or pkg.name == input.name:
-                pkg.MergeFrom(input)
-            else:
-                print 'Package names does not match', input.name, pkg.name
-                return 1
-    else:
-        pb = open(args.inputs[0], 'rb').read()
-        pkg = rfl.proto.Package.FromString(pb[4:])
+    if not args.print_files:
+        if len(args.inputs) > 1:
+            pkg = rfl.proto.Package()
+            for proto in args.inputs:
+                pb = open(proto, 'rb').read()
+                input = rfl.proto.Package.FromString(pb[4:])
+                if not pkg.name or pkg.name == input.name:
+                    pkg.MergeFrom(input)
+                else:
+                    print 'Package names does not match', input.name, pkg.name
+                    return 1
+        else:
+            pb = open(args.inputs[0], 'rb').read()
+            pkg = rfl.proto.Package.FromString(pb[4:])
 
     with rfl.generator.CreateContext(generator_module.Factory, args) as ctx:
-        package = ctx.CreatePackage(pkg)
         generator = ctx.CreateGenerator()
         if not args.print_files:
+            package = ctx.CreatePackage(pkg)
             generator.Generate(package)
             return 0
         else:
-            outs = generator.GetOutputFiles(package)
+            outs = generator.GetOutputFiles(args.pkg_name, args.pkg_version,
+                                            args.inputs)
             for out in outs:
                 print out
             return 0
