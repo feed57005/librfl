@@ -60,6 +60,7 @@ message Method {
   optional Argument return_value = 2;
   repeated Argument arguments = 3;
   optional Annotation annotation = 4;
+  optional bool static_method = 5;
 }
 
 message Field {

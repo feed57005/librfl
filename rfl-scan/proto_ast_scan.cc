@@ -364,6 +364,7 @@ bool Scanner::VisitCXXMethodDecl(CXXMethodDecl *D) {
   proto::Method *method = klass->add_methods();
   method->mutable_annotation()->CopyFrom(anno);
   method->set_name(method_name);
+  method->set_static_method(D->isStatic());
   proto::Argument *ret_val = method->mutable_return_value();
   ret_val->set_name("return");
   ReadType(D->getReturnType(), ret_val->mutable_type_ref(), ret_val->mutable_type_qualifier());
