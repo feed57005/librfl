@@ -6,6 +6,7 @@
 #include "clang/Driver/Options.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Basic/Version.h"
+#include "clang/Config/config.h"
 
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/CommandLine.h"
@@ -61,7 +62,7 @@ static cl::list<std::string> Libs("l",
                                   cl::cat(RflScanCategory));
 
 static cl::opt<std::string> OutputPath("output-dir",
-                                       cl::desc("Output directory"),
+                                       cl::desc("Output directory (DEPRECATED)"),
                                        cl::cat(RflScanCategory));
 static cl::opt<std::string> OutputFile("o",
                                        cl::desc("Output file with list of generated files"),
@@ -90,6 +91,11 @@ static cl::opt<unsigned> Verbose("verbose",
                                  cl::desc("Verbose level"),
                                  cl::init(0),
                                  cl::cat(RflScanCategory));
+
+static cl::opt<std::string> ClangResourceDir(
+    "clang-resource-dir",
+    cl::desc("Clang resource directory"),
+    cl::cat(RflScanCategory));
 
 static std::string StripBasedir(std::string const &filename,
                                 std::string const &basedir) {
@@ -176,7 +182,7 @@ int ProtoScanner(ClangTool &tool) {
     ofstream file_out;
     file_out.open(file, ios_base::binary);
     if (!file_out.good()) {
-      errs() << "Failed to open file " << file << " " << strerror(errno)
+      errs() << "Failed to open file " << file << " : " << strerror(errno)
              << "\n";
       file_out.close();
       return 1;
@@ -205,6 +211,13 @@ int ProtoScanner(ClangTool &tool) {
   }
 
   return ret;
+}
+
+std::string GetExecutablePath(const char *Argv0) {
+  // This just needs to be some symbol in the binary; C++ doesn't
+  // allow taking the address of ::main however.
+  void *MainAddr = (void*) (intptr_t) GetExecutablePath;
+  return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
 }
 
 int LegacyScanner(ClangTool &tool,
@@ -340,13 +353,23 @@ int main(int argc, char const **argv) {
 
   // Determine path to clang includes
   // TODO compilation define for external/local clang headers
-  SmallString<128> resource_dir(LLVM_PREFIX);
-  sys::path::append(resource_dir, "lib", "clang", CLANG_VERSION_STRING);
+  SmallString<128> resource_dir(CLANG_RESOURCE_DIR);
+  //sys::path::append(resource_dir, "lib", "clang", CLANG_VERSION_STRING);
 
   // Set internal / extra compilation flags
   CommandLineArguments extra_args;
   extra_args.push_back("-resource-dir");
-  extra_args.push_back(resource_dir.str());
+  if (!ClangResourceDir.getValue().empty()) {
+    extra_args.push_back(ClangResourceDir.getValue());
+  } else {
+    std::string RflScanExecutable = GetExecutablePath(argv[0]);
+    StringRef Dir = llvm::sys::path::parent_path(RflScanExecutable);
+    SmallString<128> P(llvm::sys::path::parent_path(Dir));
+    StringRef ClangLibdirSuffix(CLANG_LIBDIR_SUFFIX);
+    llvm::sys::path::append(P, Twine("lib") + ClangLibdirSuffix, "clang",
+                            CLANG_VERSION_STRING);
+    extra_args.push_back(P.str());
+  }
   extra_args.push_back("-D__RFL_SCAN__");
   extra_args.push_back("-Wno-unused-local-typedef");  // TODO hack
 
