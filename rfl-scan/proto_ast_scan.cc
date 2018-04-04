@@ -343,6 +343,46 @@ bool Scanner::VisitFieldDecl(FieldDecl *D) {
   return true;
 }
 
+bool Scanner::VisitFunctionDecl(FunctionDecl *D) {
+  if (D->getKind() == Decl::CXXMethod)
+    return true;
+
+  proto::Annotation anno;
+  if (!ReadAnnotation(D, &anno))
+    return true;
+
+  LogDecl(D);
+
+  std::string func_name = D->getDeclName().getAsString();
+  proto::Namespace *ns = CurrentNamespace();
+  if (!ns) {
+    errs() << "Error no enclosing namespace for function " << func_name << "\n";
+    return true;
+  }
+
+  proto::Function *func = ns->add_functions();
+  func->mutable_annotation()->CopyFrom(anno);
+  func->set_name(func_name);
+
+  proto::Argument *ret_val = func->mutable_return_value();
+  ret_val->set_name("return");
+  ReadType(D->getReturnType(), ret_val->mutable_type_ref(),
+           ret_val->mutable_type_qualifier());
+
+  for (FunctionDecl::param_iterator it = D->param_begin();
+       it != D->param_end(); ++it) {
+    ParmVarDecl *param = *it;
+    proto::Argument *arg = func->add_arguments();
+    ReadAnnotation(param, arg->mutable_annotation());
+
+    llvm::StringRef param_name = param->getName().str();
+    arg->set_name(param_name.data());
+    ReadType(param->getType(), arg->mutable_type_ref(),
+             arg->mutable_type_qualifier());
+  }
+  return true;
+}
+
 bool Scanner::VisitCXXMethodDecl(CXXMethodDecl *D) {
   // Ignore overloaded operators for now
   if (D->isOverloadedOperator())
@@ -352,12 +392,14 @@ bool Scanner::VisitCXXMethodDecl(CXXMethodDecl *D) {
   if (!ReadAnnotation(D, &anno))
     return true;
 
+  outs() << "Method: ";
   LogDecl(D);
 
   std::string method_name = D->getDeclName().getAsString();
   proto::Class *klass = CurrentClass();
   if (!klass) {
-    errs() << "Error no enclosing class for " << method_name.c_str() << "\n";
+    errs() << "Error no enclosing class for method " << method_name.c_str()
+           << "\n";
     return true;
   }
 
@@ -365,9 +407,11 @@ bool Scanner::VisitCXXMethodDecl(CXXMethodDecl *D) {
   method->mutable_annotation()->CopyFrom(anno);
   method->set_name(method_name);
   method->set_static_method(D->isStatic());
+
   proto::Argument *ret_val = method->mutable_return_value();
   ret_val->set_name("return");
-  ReadType(D->getReturnType(), ret_val->mutable_type_ref(), ret_val->mutable_type_qualifier());
+  ReadType(D->getReturnType(), ret_val->mutable_type_ref(),
+           ret_val->mutable_type_qualifier());
 
   for (CXXMethodDecl::param_iterator it = D->param_begin();
        it != D->param_end(); ++it) {

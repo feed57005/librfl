@@ -148,6 +148,24 @@ class Class(TypeContainer):
             self.methods.append(method_klass(method, self))
 
 
+class Function(object):
+    def __init__(self, proto, parent):
+        super(Function, self).__init__()
+        self.proto = proto
+        self.parent = parent
+        self.annotation = AnnotationToDict(proto.annotation)
+
+        pkg_file_klass = rfl.generator.context.factory.PackageFile()
+        p = parent
+        names = [proto.name]
+        while p and not isinstance(p, pkg_file_klass):
+            names.insert(0, p.proto.name)
+            p = p.parent
+        self.full_name = '.'.join(names)
+        self.qualified_name = '::'.join(names)
+        self.package_file = p
+
+
 class Namespace(TypeContainer):
     def __init__(self, proto, parent):
         super(Namespace, self).__init__(proto, parent)
@@ -156,6 +174,11 @@ class Namespace(TypeContainer):
         ns_klass = rfl.generator.context.factory.Namespace()
         for ns in proto.namespaces:
             self.namespaces.append(ns_klass(ns, self))
+
+        self.functions = []
+        for func in proto.functions:
+            function_klass = rfl.generator.context.factory.Function()
+            self.functions.append(function_klass(func, self))
 
 
 class PackageFile(Namespace):
@@ -181,14 +204,20 @@ class Package(object):
         for imp in proto.imports:
             self.imports.append((imp, PlatformLibForName(imp)))
 
-    def GetPackageClasses(self):
+    def GetPackageContents(self):
+        """
+        Traverse PackageFile and namespaces for classes, enums and functions.
+        """
         klasses = []
         enums = []
+        funcs = []
         for pkg_file in self.package_files:
             for klass in pkg_file.enums:
                 enums.append(klass)
             for klass in pkg_file.classes:
                 klasses.append(klass)
+            for func in pkg_file.functions:
+                funcs.append(func)
             for ns in pkg_file.namespaces:
                 stack = []
                 stack.insert(0, ns)
@@ -198,12 +227,14 @@ class Package(object):
                         if len(klass.classes):
                             stack[0:0] = [klass]
                         klasses.append(klass)
-                    for klass in current.enums:
-                        enums.append(klass)
+                    for enm in current.enums:
+                        enums.append(enm)
+                    for func in current.functions:
+                        funcs.append(func)
                     if hasattr(current, 'namespaces') and current.namespaces:
                         stack[0:0] = current.namespaces
         klasses = self.SortClasses(klasses)
-        return enums, klasses
+        return enums, klasses, funcs
 
     def SortClasses(self, klasses):
         klass_dict = \
@@ -322,6 +353,9 @@ class Factory(object):
     @classmethod
     def Enum(cls):
         return Enum
+    @classmethod
+    def Function(cls):
+        return Function
 
     @classmethod
     def Namespace(cls):

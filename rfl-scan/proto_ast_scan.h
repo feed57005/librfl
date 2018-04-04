@@ -61,6 +61,7 @@ public:
   bool VisitNamespaceDecl(NamespaceDecl *D);
   bool TraverseNamespaceDecl(NamespaceDecl *D);
 
+  bool VisitFunctionDecl(FunctionDecl *D);
   bool VisitFieldDecl(FieldDecl *D);
   bool VisitCXXMethodDecl(CXXMethodDecl *D);
   bool VisitEnumDecl(EnumDecl *D);

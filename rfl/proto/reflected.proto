@@ -55,6 +55,13 @@ message Argument {
   optional Annotation annotation = 5;
 }
 
+message Function {
+  optional string name = 1;
+  optional Argument return_value = 2;
+  repeated Argument arguments = 3;
+  optional Annotation annotation = 4;
+}
+
 message Method {
   optional string name = 1;
   optional Argument return_value = 2;
@@ -89,6 +96,7 @@ message Namespace {
   repeated Class classes = 3;
   repeated Enum enums = 4;
   repeated Namespace namespaces = 5;
+  repeated Function functions = 6;
 }
 
 message PackageFile {
@@ -98,6 +106,7 @@ message PackageFile {
   repeated Namespace namespaces = 4;
   repeated Class classes = 5;
   repeated Enum enums = 6;
+  repeated Function functions = 7;
 }
 
 message Package {

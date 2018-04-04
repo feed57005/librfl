@@ -70,6 +70,9 @@ public:
   rfl_method(name = "Do Something")
   void DoSomething(rfl_arg(name = "A", kind = "in") int a);
 
+  rfl_method(name = "Do Something Static")
+  static void DoSomethingStatic(rfl_arg(name = "A", kind = "in") int a);
+
   int *ptr_value() const;
   void set_ptr_value(int *ptr_value);
 
@@ -175,6 +178,8 @@ public:
   // ExternalBaseClass overrides
   void ExternalStuff() override {}
 };
+
+void TestFunction(TestObject *obj);
 
 }  // namespace test
 

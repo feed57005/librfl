@@ -65,7 +65,7 @@ static cl::opt<std::string> OutputPath("output-dir",
                                        cl::desc("Output directory (DEPRECATED)"),
                                        cl::cat(RflScanCategory));
 static cl::opt<std::string> OutputFile("o",
-                                       cl::desc("Output file with list of generated files"),
+                                       cl::desc("Output file (required)"),
                                        cl::cat(RflScanCategory));
 
 static cl::opt<std::string> PackageName("pkg-name",

@@ -27,6 +27,11 @@ void TestBaseObject::DoSomething(int a) {
   int_value_ += a;
 }
 
+// static
+void TestBaseObject::DoSomethingStatic(int a) {
+  std::cout << a << std::endl;
+}
+
 int *TestBaseObject::ptr_value() const {
   return ptr_value_;
 }
@@ -91,6 +96,10 @@ TestBaseObject::Flags TestObject::more_flags() const {
 
 void TestObject::set_more_flags(Flags more_flags) {
   more_flags_ = more_flags;
+}
+
+void TestFunction(TestObject *obj) {
+  std::cout << obj->int_value() << std::endl;
 }
 
 } // namespace test
