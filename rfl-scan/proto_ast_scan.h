@@ -65,6 +65,7 @@ public:
   bool VisitFieldDecl(FieldDecl *D);
   bool VisitCXXMethodDecl(CXXMethodDecl *D);
   bool VisitEnumDecl(EnumDecl *D);
+  bool VisitTypedefDecl(TypedefDecl *D);
 
 private:
   bool IsCurrentFileLocation(SourceLocation loc) const;

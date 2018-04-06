@@ -392,7 +392,6 @@ bool Scanner::VisitCXXMethodDecl(CXXMethodDecl *D) {
   if (!ReadAnnotation(D, &anno))
     return true;
 
-  outs() << "Method: ";
   LogDecl(D);
 
   std::string method_name = D->getDeclName().getAsString();
@@ -423,6 +422,42 @@ bool Scanner::VisitCXXMethodDecl(CXXMethodDecl *D) {
     arg->set_name(param_name.data());
     ReadType(param->getType(), arg->mutable_type_ref(),
              arg->mutable_type_qualifier());
+  }
+
+  return true;
+}
+
+bool Scanner::VisitTypedefDecl(TypedefDecl *D) {
+  proto::Annotation anno;
+  if (!ReadAnnotation(D, &anno))
+    return true;
+
+  LogDecl(D);
+
+  std::string td_name = D->getDeclName().getAsString();
+
+  proto::Typedef *td = nullptr;
+  proto::Class *klass = CurrentClass();
+  if (klass) {
+    td = klass->add_typedefs();
+  } else {
+    proto::Namespace *ns = CurrentNamespace();
+    if (ns) {
+      td = ns->add_typedefs();
+    } else {
+      errs() << "Error no enclosing namespace for " << td_name << "\n";
+      return true;
+    }
+  }
+
+  td->set_name(td_name);
+  td->mutable_annotation()->CopyFrom(anno);
+
+  if (!ReadType(D->getUnderlyingType(), td->mutable_type_ref(),
+                td->mutable_type_qualifier())) {
+    errs() << "Failed to read underlying type for " << td_name << "\n";
+    // FIXME delete invalid td
+    return true;
   }
 
   return true;

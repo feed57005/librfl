@@ -37,6 +37,13 @@ message TypeQualifier {
   optional bool is_restrict = 7;
 }
 
+message Typedef {
+  optional string name = 1;
+  optional TypeRef type_ref = 2;
+  optional TypeQualifier type_qualifier = 3;
+  optional Annotation annotation = 5;
+}
+
 message Enum {
   message Item {
     optional string id = 1;
@@ -88,6 +95,7 @@ message Class {
   repeated Method methods = 7;
   repeated Enum enums = 8;
   repeated Class classes = 9;
+  repeated Typedef typedefs = 10;
 }
 
 message Namespace {
@@ -97,6 +105,7 @@ message Namespace {
   repeated Enum enums = 4;
   repeated Namespace namespaces = 5;
   repeated Function functions = 6;
+  repeated Typedef typedefs = 7;
 }
 
 message PackageFile {
@@ -107,6 +116,7 @@ message PackageFile {
   repeated Class classes = 5;
   repeated Enum enums = 6;
   repeated Function functions = 7;
+  repeated Typedef typedefs = 8;
 }
 
 message Package {
@@ -115,5 +125,5 @@ message Package {
   repeated string imports = 3;
   repeated string libraries = 4;
   repeated PackageFile package_files = 5;
-  repeated string provided_classes = 6;
+  repeated string provided_classes = 6; // (depracated)
 }

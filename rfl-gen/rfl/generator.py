@@ -82,6 +82,39 @@ class Enum(object):
                 ns = None
 
 
+class Typedef(object):
+    def __init__(self, proto, parent):
+        super(Typedef, self).__init__()
+        self.proto = proto
+        self.parent = parent
+        self.annotation = AnnotationToDict(proto.annotation)
+        pkg_file_klass = rfl.generator.context.factory.PackageFile()
+
+        self.full_name = self.proto.name
+        p = parent
+        names = [proto.name]
+        while p and not isinstance(p, pkg_file_klass):
+            names.insert(0, p.proto.name)
+            p = p.parent
+        self.full_name = '.'.join(names)
+        self.qualified_name = '::'.join(names)
+        self.package_file = p
+
+        # Build namespace list
+        if isinstance(parent, Class):
+            ns = parent.parent
+        else:
+            ns = parent
+        ns_klass = rfl.generator.context.factory.Namespace()
+        self.namespace = []
+        while ns:
+            self.namespace.insert(0, ns.proto.name)
+            if ns.parent.__class__ == ns_klass:
+                ns = ns.parent
+            else:
+                ns = None
+
+
 class TypeContainer(object):
     def __init__(self, proto, parent):
         super(TypeContainer, self).__init__()
@@ -90,6 +123,7 @@ class TypeContainer(object):
 
         self.classes = []
         self.enums = []
+        self.typedefs = []
 
         for klass in proto.classes:
             class_klass = rfl.generator.context.factory.Class()
@@ -98,6 +132,10 @@ class TypeContainer(object):
         for enm in proto.enums:
             enm_klass = rfl.generator.context.factory.Enum()
             self.enums.append(enm_klass(enm, self))
+
+        for td in proto.typedefs:
+            td_klass = rfl.generator.context.factory.Typedef()
+            self.typedefs.append(td_klass(td, self))
 
         pkg_file_klass = rfl.generator.context.factory.PackageFile()
 
@@ -211,13 +249,16 @@ class Package(object):
         klasses = []
         enums = []
         funcs = []
+        typedefs = []
         for pkg_file in self.package_files:
-            for klass in pkg_file.enums:
-                enums.append(klass)
+            for enm in pkg_file.enums:
+                enums.append(enm)
             for klass in pkg_file.classes:
                 klasses.append(klass)
             for func in pkg_file.functions:
                 funcs.append(func)
+            for td in pkg_file.typedefs:
+                typedefs.append(td)
             for ns in pkg_file.namespaces:
                 stack = []
                 stack.insert(0, ns)
@@ -231,10 +272,12 @@ class Package(object):
                         enums.append(enm)
                     for func in current.functions:
                         funcs.append(func)
+                    for td in current.typedefs:
+                        typedefs.append(td)
                     if hasattr(current, 'namespaces') and current.namespaces:
                         stack[0:0] = current.namespaces
         klasses = self.SortClasses(klasses)
-        return enums, klasses, funcs
+        return enums, klasses, funcs, typedefs
 
     def SortClasses(self, klasses):
         klass_dict = \
@@ -353,6 +396,9 @@ class Factory(object):
     @classmethod
     def Enum(cls):
         return Enum
+    @classmethod
+    def Typedef(cls):
+        return Typedef
     @classmethod
     def Function(cls):
         return Function
